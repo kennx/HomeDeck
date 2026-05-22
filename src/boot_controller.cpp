@@ -348,6 +348,7 @@ bool BootController::runBackgroundTasks(unsigned long nowMs, TimeSnapshot* snaps
       ? deps_.connectWifi(config_.wifiSsid, config_.wifiPassword)
       : false;
 
+  const bool wasTimeSynced = snapshot != nullptr ? snapshot->timeSynced : false;
   bool timeSyncedNow = false;
   if (wifiConnected_ && deps_.syncTimeFromNtp) {
     timeSyncedNow = deps_.syncTimeFromNtp();
@@ -357,7 +358,7 @@ bool BootController::runBackgroundTasks(unsigned long nowMs, TimeSnapshot* snaps
   }
 
   if (snapshot == nullptr || !snapshot->timeValid) {
-    return shouldRefresh || timeSyncedNow;
+    return shouldRefresh || (timeSyncedNow && !wasTimeSynced);
   }
 
   const bool personalWasFresh = personalCalendarFresh_;
@@ -367,7 +368,7 @@ bool BootController::runBackgroundTasks(unsigned long nowMs, TimeSnapshot* snaps
     lastNetworkCycleAtMs_ = nowMs;
   }
 
-  if (timeSyncedNow || dateChanged ||
+  if ((timeSyncedNow && !wasTimeSynced) || dateChanged ||
       (!personalWasFresh && personalCalendarFresh_) ||
       (!holidayWasFresh && holidayCalendarFresh_)) {
     shouldRefresh = true;
