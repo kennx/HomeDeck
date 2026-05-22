@@ -21,7 +21,7 @@
 
 namespace {
 
-constexpr unsigned long kRefreshIntervalMs = 60UL * 60UL * 1000UL;
+constexpr unsigned long kRefreshIntervalMs = 30UL * 60UL * 1000UL;
 constexpr unsigned long kSensorSampleIntervalMs = 60UL * 1000UL;
 constexpr unsigned long kNetworkRetryIntervalMs = 60UL * 1000UL;
 
