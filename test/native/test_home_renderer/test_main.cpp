@@ -6,6 +6,7 @@
 
 FakeM5Global M5;
 
+#include "../../../src/device_font.cpp"
 #include "../../../src/home_renderer.cpp"
 
 namespace {
@@ -39,15 +40,7 @@ int availableWidthFor(const FakePrintedText& entry) {
 }
 
 int codePointWidthFor(FakeFontKind fontKind, unsigned char leadByte) {
-  if (fontKind == FakeFontKind::kDefault) {
-    return 8;
-  }
-
-  if (leadByte < 0x80 || (leadByte & 0xE0) == 0xC0) {
-    return 9;
-  }
-
-  return 12;
+  return FakeDisplay::codePointWidthFor(fontKind, leadByte);
 }
 
 int renderedWidth(const FakePrintedText& entry) {
@@ -133,7 +126,7 @@ void test_render_fits_long_holiday_and_event_text_within_screen() {
       renderedWidth(*eventTitle));
 }
 
-void test_render_truncates_chinese_holiday_text_using_chinese_font_metrics() {
+void test_render_truncates_holiday_text_using_device_font_metrics() {
   resetFakes();
 
   homedeck::HomeViewModel model;
@@ -156,11 +149,15 @@ void test_render_truncates_chinese_holiday_text_using_chinese_font_metrics() {
 
   const FakePrintedText* holiday = findPrintedText(20, 204);
   TEST_ASSERT_NOT_NULL(holiday);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kChinese), static_cast<int>(holiday->fontKind));
-  TEST_ASSERT_EQUAL_STRING("一二三四五六七八九十一二...", holiday->text.c_str());
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(FakeFontKind::kDeviceDefault),
+      static_cast<int>(holiday->fontKind));
+  TEST_ASSERT_TRUE(holiday->text.size() >= 3);
+  TEST_ASSERT_EQUAL_STRING("...", holiday->text.substr(holiday->text.size() - 3).c_str());
+  TEST_ASSERT_LESS_OR_EQUAL_INT(availableWidthFor(*holiday), renderedWidth(*holiday));
 }
 
-void test_render_uses_default_font_for_ascii_fields_and_chinese_font_for_labels() {
+void test_render_uses_device_default_font_for_all_text_fields() {
   resetFakes();
 
   homedeck::HomeViewModel model;
@@ -181,15 +178,15 @@ void test_render_uses_default_font_for_ascii_fields_and_chinese_font_for_labels(
   HomeRenderer renderer;
   renderer.render(model);
 
-  assertPrintedFont("09:30", FakeFontKind::kDefault);
-  assertPrintedFont("2026年5月21日 星期四", FakeFontKind::kChinese);
-  assertPrintedFont("今日日程", FakeFontKind::kChinese);
-  assertPrintedFont("09:00", FakeFontKind::kDefault);
-  assertPrintedFont("56%", FakeFontKind::kDefault);
-  assertPrintedFont("开晨会", FakeFontKind::kChinese);
+  assertPrintedFont("09:30", FakeFontKind::kDeviceDefault);
+  assertPrintedFont("2026年5月21日 星期四", FakeFontKind::kDeviceDefault);
+  assertPrintedFont("今日日程", FakeFontKind::kDeviceDefault);
+  assertPrintedFont("09:00", FakeFontKind::kDeviceDefault);
+  assertPrintedFont("56%", FakeFontKind::kDeviceDefault);
+  assertPrintedFont("开晨会", FakeFontKind::kDeviceDefault);
 }
 
-void test_render_splits_temperature_value_to_keep_degree_unit_off_default_font() {
+void test_render_draws_temperature_value_with_device_default_font() {
   resetFakes();
 
   homedeck::HomeViewModel model;
@@ -210,33 +207,20 @@ void test_render_splits_temperature_value_to_keep_degree_unit_off_default_font()
   HomeRenderer renderer;
   renderer.render(model);
 
-  TEST_ASSERT_NULL(findPrintedText("23.7°C"));
-
-  const FakePrintedText* temperatureValue = findPrintedText("23.7");
-  TEST_ASSERT_NOT_NULL(temperatureValue);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDefault), static_cast<int>(temperatureValue->fontKind));
-
-  const FakePrintedText* temperatureUnit = findPrintedText("°C");
-  TEST_ASSERT_NOT_NULL(temperatureUnit);
-  TEST_ASSERT_NOT_EQUAL(
-      static_cast<int>(FakeFontKind::kDefault),
-      static_cast<int>(temperatureUnit->fontKind));
-
-  TEST_ASSERT_EQUAL_INT(temperatureValue->y + 16, temperatureUnit->y);
-  TEST_ASSERT_EQUAL_INT(rightEdgeOf(*temperatureValue), temperatureUnit->x);
-  TEST_ASSERT_LESS_OR_EQUAL_INT(rightEdgeOf(*temperatureValue), temperatureUnit->x);
-
-  TEST_ASSERT_LESS_OR_EQUAL_INT(32 + 146, rightEdgeOf(*temperatureValue));
-  TEST_ASSERT_LESS_OR_EQUAL_INT(32 + 146, rightEdgeOf(*temperatureUnit));
-  TEST_ASSERT_LESS_OR_EQUAL_INT(32 + 146, std::max(rightEdgeOf(*temperatureValue), rightEdgeOf(*temperatureUnit)));
+  const FakePrintedText* temperature = findPrintedText("23.7°C");
+  TEST_ASSERT_NOT_NULL(temperature);
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(FakeFontKind::kDeviceDefault),
+      static_cast<int>(temperature->fontKind));
+  TEST_ASSERT_LESS_OR_EQUAL_INT(32 + 146, rightEdgeOf(*temperature));
 }
 
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_render_shows_empty_event_message_when_event_count_is_zero);
   RUN_TEST(test_render_fits_long_holiday_and_event_text_within_screen);
-  RUN_TEST(test_render_truncates_chinese_holiday_text_using_chinese_font_metrics);
-  RUN_TEST(test_render_uses_default_font_for_ascii_fields_and_chinese_font_for_labels);
-  RUN_TEST(test_render_splits_temperature_value_to_keep_degree_unit_off_default_font);
+  RUN_TEST(test_render_truncates_holiday_text_using_device_font_metrics);
+  RUN_TEST(test_render_uses_device_default_font_for_all_text_fields);
+  RUN_TEST(test_render_draws_temperature_value_with_device_default_font);
   return UNITY_END();
 }
