@@ -9,7 +9,7 @@
 
 class ApConfigPortal {
  public:
-  using SaveCallback = std::function<bool(const homedeck::SetupConfig& config)>;
+  using SaveCallback = std::function<int(const homedeck::SetupConfig&)>;
 
   void begin(
       const char* apSsid,

@@ -61,9 +61,15 @@ void ApConfigPortal::handleSave() {
     return;
   }
 
-  if (!onSave_ || !onSave_(submitted)) {
-    sendPage(500, submitted, "保存配置失败。");
-    return;
+  if (onSave_) {
+    int saveResult = onSave_(submitted);
+    if (saveResult == 1) {
+      sendPage(500, submitted, "保存配置失败：无法连接到 Wi-Fi。");
+      return;
+    } else if (saveResult == 2) {
+      sendPage(500, submitted, "保存配置失败：无法写入存储 (NVS)。");
+      return;
+    }
   }
 
   defaults_ = submitted;

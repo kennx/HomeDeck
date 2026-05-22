@@ -259,7 +259,7 @@ void BootController::enterAccessPointMode(const homedeck::SetupConfig& config) {
       deps_.makeAccessPointSuffix ? deps_.makeAccessPointSuffix()
                                   : std::string("000000"));
   const BootControllerSaveCallback onSave = [this](const homedeck::SetupConfig& saved) {
-    return deps_.saveSetupConfig ? deps_.saveSetupConfig(saved) : false;
+    return deps_.saveSetupConfig && deps_.saveSetupConfig(saved) ? 0 : 2;
   };
 
   if (deps_.beginSetupPortal) {

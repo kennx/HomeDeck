@@ -16,7 +16,7 @@ struct BootCalendarCacheRecord {
   std::string updatedAt;
 };
 
-using BootControllerSaveCallback = std::function<bool(const homedeck::SetupConfig& config)>;
+using BootControllerSaveCallback = std::function<int(const homedeck::SetupConfig& config)>;
 
 struct BootControllerDeps {
   std::function<void()> m5Begin;
