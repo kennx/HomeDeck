@@ -5,6 +5,7 @@
 
 #include <string>
 
+#include "device_font.h"
 #include "homedeck/setup_page.h"
 
 namespace {
@@ -50,11 +51,13 @@ void SetupRenderer::render(const char* apSsid, const char* ipText) {
   canvas.fillSprite(TFT_WHITE);
   canvas.setTextColor(TFT_BLACK, TFT_WHITE);
   canvas.setTextWrap(false);
+  if (!homedeck::device_font::applyDefault(canvas)) {
+    canvas.setFont(nullptr);
+  }
   canvas.setTextSize(kTextSize);
 
   int y = kTop;
 
-  canvas.setFont(&fonts::efontCN_14);
   canvas.setCursor(kLeft, y);
   canvas.print("HomeDeck 配网");
   y += kNormalLineHeight;
@@ -63,26 +66,21 @@ void SetupRenderer::render(const char* apSsid, const char* ipText) {
   canvas.print("1. 连接开放热点");
   y += kNormalLineHeight;
 
-  canvas.setFont(nullptr);
   canvas.setCursor(kLeft, y);
   canvas.print(apSsid);
   y += 20;
 
-  canvas.setFont(&fonts::efontCN_14);
   canvas.setCursor(kLeft, y);
   canvas.print("2. 打开 ");
 
   const int step2ValueX = kLeft + canvas.textWidth("2. 打开 ");
-  canvas.setFont(nullptr);
   canvas.setCursor(step2ValueX, y);
   canvas.print(ipText);
   y += kMixedLineHeight;
 
-  canvas.setFont(&fonts::efontCN_14);
   canvas.setCursor(kLeft, y);
   canvas.print("当前热点 IP: ");
 
-  canvas.setFont(nullptr);
   canvas.print(ipText);
 
   drawQrCode(canvas, homedeck::buildWifiQrPayload(apSsid), y + kMixedLineHeight + kQrTopGap);

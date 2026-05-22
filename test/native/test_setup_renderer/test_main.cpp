@@ -6,6 +6,7 @@
 
 FakeM5Global M5;
 
+#include "../../../src/device_font.cpp"
 #include "../../../src/setup_renderer.cpp"
 
 namespace {
@@ -88,7 +89,7 @@ const FakeRect* findLargestRect() {
 
 }  // namespace
 
-void test_render_uses_chinese_font_only_for_chinese_copy() {
+void test_render_uses_device_default_font_for_all_text() {
   resetFakes();
 
   SetupRenderer renderer;
@@ -98,34 +99,34 @@ void test_render_uses_chinese_font_only_for_chinese_copy() {
 
   const FakePrintedText* title = findPrintedText("HomeDeck 配网");
   TEST_ASSERT_NOT_NULL(title);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kChinese), static_cast<int>(title->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(title->fontKind));
 
   const FakePrintedText* step1 = findPrintedText("1. 连接开放热点");
   TEST_ASSERT_NOT_NULL(step1);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kChinese), static_cast<int>(step1->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(step1->fontKind));
 
   const FakePrintedText* ssid = findPrintedText("HomeDeck Setup");
   TEST_ASSERT_NOT_NULL(ssid);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDefault), static_cast<int>(ssid->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(ssid->fontKind));
 
   const FakePrintedText* step2Label = findPrintedText("2. 打开 ");
   TEST_ASSERT_NOT_NULL(step2Label);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kChinese), static_cast<int>(step2Label->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(step2Label->fontKind));
 
   const FakePrintedText* step2Address = findPrintedText("192.168.4.1");
   TEST_ASSERT_NOT_NULL(step2Address);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDefault), static_cast<int>(step2Address->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(step2Address->fontKind));
   TEST_ASSERT_EQUAL_INT(step2Label->y, step2Address->y);
   TEST_ASSERT_EQUAL_INT(step2Label->x + renderedWidth(*step2Label), step2Address->x);
 
   const FakePrintedText* ipLabel = findPrintedText("当前热点 IP: ");
   TEST_ASSERT_NOT_NULL(ipLabel);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kChinese), static_cast<int>(ipLabel->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(ipLabel->fontKind));
 
   const FakePrintedText* ipText = &M5.Display.prints.back();
   TEST_ASSERT_NOT_NULL(ipText);
   TEST_ASSERT_EQUAL_STRING("192.168.4.1", ipText->text.c_str());
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDefault), static_cast<int>(ipText->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(ipText->fontKind));
 }
 
 void test_render_keeps_text_above_qr_code_region() {
@@ -143,7 +144,7 @@ void test_render_keeps_text_above_qr_code_region() {
 
   const FakePrintedText* step2Address = findPrintedTextAtY("10.0.0.23", step2Label->y);
   TEST_ASSERT_NOT_NULL(step2Address);
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDefault), static_cast<int>(step2Address->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(step2Address->fontKind));
 
   const FakePrintedText* lastLineLabel = findPrintedText("当前热点 IP: ");
   TEST_ASSERT_NOT_NULL(lastLineLabel);
@@ -151,7 +152,7 @@ void test_render_keeps_text_above_qr_code_region() {
   const FakePrintedText* lastLine = findLastPrintedText();
   TEST_ASSERT_NOT_NULL(lastLine);
   TEST_ASSERT_EQUAL_STRING("10.0.0.23", lastLine->text.c_str());
-  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDefault), static_cast<int>(lastLine->fontKind));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(lastLine->fontKind));
 
   const FakeRect* qrRegion = findLargestRect();
   TEST_ASSERT_NOT_NULL(qrRegion);
@@ -162,7 +163,7 @@ void test_render_keeps_text_above_qr_code_region() {
 
 int main() {
   UNITY_BEGIN();
-  RUN_TEST(test_render_uses_chinese_font_only_for_chinese_copy);
+  RUN_TEST(test_render_uses_device_default_font_for_all_text);
   RUN_TEST(test_render_keeps_text_above_qr_code_region);
   return UNITY_END();
 }
