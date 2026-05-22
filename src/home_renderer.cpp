@@ -8,6 +8,11 @@
 
 namespace {
 
+enum class RenderFont {
+  kDefault,
+  kChinese,
+};
+
 constexpr int kMarginX = 20;
 constexpr int kTimeY = 24;
 constexpr int kDateY = 106;
@@ -69,7 +74,28 @@ std::string fitText(M5Canvas& canvas, int size, int maxWidth, const std::string&
   return kEllipsis;
 }
 
-void drawText(M5Canvas& canvas, int x, int y, int size, const std::string& text, int maxWidth) {
+void setRenderFont(M5Canvas& canvas, RenderFont font) {
+  canvas.setFont(font == RenderFont::kChinese ? &fonts::efontCN_14 : nullptr);
+}
+
+std::size_t findFirstNonAsciiByte(const std::string& text) {
+  for (std::size_t index = 0; index < text.size(); ++index) {
+    if ((static_cast<unsigned char>(text[index]) & 0x80) != 0) {
+      return index;
+    }
+  }
+  return std::string::npos;
+}
+
+void drawText(
+    M5Canvas& canvas,
+    int x,
+    int y,
+    int size,
+    const std::string& text,
+    int maxWidth,
+    RenderFont font) {
+  setRenderFont(canvas, font);
   canvas.setTextSize(size);
   canvas.setCursor(x, y);
   canvas.print(fitText(canvas, size, maxWidth, text).c_str());
@@ -78,24 +104,66 @@ void drawText(M5Canvas& canvas, int x, int y, int size, const std::string& text,
 void drawMetricBox(M5Canvas& canvas, int x, int y, const char* label, const std::string& value) {
   canvas.drawRect(x, y, kMetricBoxWidth, kMetricBoxHeight, TFT_BLACK);
 
-  drawText(canvas, x + 12, y + 12, 2, label, kMetricBoxWidth - 24);
-  drawText(canvas, x + 12, y + 44, 4, value, kMetricBoxWidth - 24);
+  drawText(canvas, x + 12, y + 12, 2, label, kMetricBoxWidth - 24, RenderFont::kChinese);
+  drawText(canvas, x + 12, y + 44, 4, value, kMetricBoxWidth - 24, RenderFont::kDefault);
+}
+
+void drawTemperatureMetricBox(M5Canvas& canvas, int x, int y, const char* label, const std::string& value) {
+  canvas.drawRect(x, y, kMetricBoxWidth, kMetricBoxHeight, TFT_BLACK);
+
+  drawText(canvas, x + 12, y + 12, 2, label, kMetricBoxWidth - 24, RenderFont::kChinese);
+
+  const int valueX = x + 12;
+  const int valueY = y + 44;
+  const int valueWidth = kMetricBoxWidth - 24;
+  const std::size_t suffixIndex = findFirstNonAsciiByte(value);
+  if (suffixIndex == std::string::npos) {
+    drawText(canvas, valueX, valueY, 4, value, valueWidth, RenderFont::kDefault);
+    return;
+  }
+
+  const std::string prefix = value.substr(0, suffixIndex);
+  const std::string suffix = value.substr(suffixIndex);
+
+  setRenderFont(canvas, RenderFont::kChinese);
+  const std::string fittedSuffix = fitText(canvas, 1, valueWidth, suffix);
+  const int suffixWidth = canvas.textWidth(fittedSuffix.c_str());
+
+  setRenderFont(canvas, RenderFont::kDefault);
+  const std::string fittedPrefix = fitText(canvas, 4, std::max(0, valueWidth - suffixWidth), prefix);
+  canvas.setTextSize(4);
+  canvas.setCursor(valueX, valueY);
+  canvas.print(fittedPrefix.c_str());
+  const int prefixWidth = canvas.textWidth(fittedPrefix.c_str());
+
+  setRenderFont(canvas, RenderFont::kChinese);
+  canvas.setTextSize(1);
+  canvas.setCursor(valueX + prefixWidth, valueY + 16);
+  canvas.print(fittedSuffix.c_str());
 }
 
 void drawEventRow(M5Canvas& canvas, int x, int y, const homedeck::EventRow& row) {
   if (row.timeText.empty()) {
-    drawText(canvas, x, y, 2, row.titleText, canvas.width() - x - kMarginX);
+    drawText(
+        canvas,
+        x,
+        y,
+        2,
+        row.titleText,
+        canvas.width() - x - kMarginX,
+        RenderFont::kChinese);
     return;
   }
 
-  drawText(canvas, x, y, 2, row.timeText, kEventTimeWidth - 8);
+  drawText(canvas, x, y, 2, row.timeText, kEventTimeWidth - 8, RenderFont::kDefault);
   drawText(
       canvas,
       x + kEventTimeWidth,
       y,
       2,
       row.titleText,
-      canvas.width() - (x + kEventTimeWidth) - kMarginX);
+      canvas.width() - (x + kEventTimeWidth) - kMarginX,
+      RenderFont::kChinese);
 }
 
 }  // namespace
@@ -105,22 +173,28 @@ void HomeRenderer::render(const homedeck::HomeViewModel& model) {
   canvas.createSprite(M5.Display.width(), M5.Display.height());
   canvas.fillSprite(TFT_WHITE);
   canvas.setTextColor(TFT_BLACK, TFT_WHITE);
-  canvas.setFont(&fonts::efontCN_14);
   canvas.setTextWrap(false);
 
   const int pageWidth = canvas.width();
   const int contentWidth = pageWidth - kMarginX * 2;
 
-  drawText(canvas, kMarginX, kTimeY, 7, model.timeText.empty() ? "--:--" : model.timeText, contentWidth);
-  drawText(canvas, kMarginX, kDateY, 2, model.dateText, contentWidth);
-  drawText(canvas, kMarginX, kLunarY, 2, model.lunarText, contentWidth);
-  drawText(canvas, kMarginX, kSolarTermY, 2, model.solarTermText, contentWidth);
-  drawText(canvas, kMarginX, kHolidayY, 2, model.holidayText, contentWidth);
+  drawText(
+      canvas,
+      kMarginX,
+      kTimeY,
+      7,
+      model.timeText.empty() ? "--:--" : model.timeText,
+      contentWidth,
+      RenderFont::kDefault);
+  drawText(canvas, kMarginX, kDateY, 2, model.dateText, contentWidth, RenderFont::kChinese);
+  drawText(canvas, kMarginX, kLunarY, 2, model.lunarText, contentWidth, RenderFont::kChinese);
+  drawText(canvas, kMarginX, kSolarTermY, 2, model.solarTermText, contentWidth, RenderFont::kChinese);
+  drawText(canvas, kMarginX, kHolidayY, 2, model.holidayText, contentWidth, RenderFont::kChinese);
 
-  drawMetricBox(canvas, kMarginX, kMetricBoxY, "温度", model.temperatureText);
+  drawTemperatureMetricBox(canvas, kMarginX, kMetricBoxY, "温度", model.temperatureText);
   drawMetricBox(canvas, kHumidityBoxX, kMetricBoxY, "湿度", model.humidityText);
 
-  drawText(canvas, kMarginX, kEventsTitleY, 2, "今日日程", contentWidth);
+  drawText(canvas, kMarginX, kEventsTitleY, 2, "今日日程", contentWidth, RenderFont::kChinese);
 
   const std::uint32_t visibleCount = std::min<std::uint32_t>(
       model.eventCount,
@@ -146,10 +220,18 @@ void HomeRenderer::render(const homedeck::HomeViewModel& model) {
         kEventFooterY,
         2,
         "还有 " + std::to_string(model.eventCount - visibleCount) + " 项",
-        contentWidth);
+        contentWidth,
+        RenderFont::kChinese);
   }
 
-  drawText(canvas, kMarginX, kStatusY, 2, homedeck::buildStatusText(model), contentWidth);
+  drawText(
+      canvas,
+      kMarginX,
+      kStatusY,
+      2,
+      homedeck::buildStatusText(model),
+      contentWidth,
+      RenderFont::kChinese);
 
   M5.Display.startWrite();
   canvas.pushSprite(0, 0);

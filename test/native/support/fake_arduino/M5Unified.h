@@ -16,6 +16,11 @@ namespace fonts {
 inline const int efontCN_14 = 0;
 }  // namespace fonts
 
+enum class FakeFontKind {
+  kDefault = 0,
+  kChinese = 1,
+};
+
 namespace m5 {
 
 struct rtc_time_t {
@@ -119,6 +124,7 @@ struct FakePrintedText {
   int x = 0;
   int y = 0;
   int size = 1;
+  FakeFontKind fontKind = FakeFontKind::kDefault;
   std::string text;
 };
 
@@ -135,6 +141,7 @@ struct FakeDisplay {
   int cursorX = 0;
   int cursorY = 0;
   int textSize = 1;
+  FakeFontKind fontKind = FakeFontKind::kDefault;
   int widthPixels = 400;
   int heightPixels = 600;
   bool textWrap = true;
@@ -143,6 +150,10 @@ struct FakeDisplay {
   std::uint32_t fillScreenColor = TFT_WHITE;
   std::vector<FakePrintedText> prints;
   std::vector<FakeRect> rects;
+
+  static int lineHeightFor(FakeFontKind kind) {
+    return kind == FakeFontKind::kChinese ? 14 : 8;
+  }
 
   void setRotation(int value) {
     rotation = value;
@@ -177,7 +188,10 @@ struct FakeDisplay {
     textSize = value;
   }
 
-  void setFont(const void*) {
+  void setFont(const void* font) {
+    fontKind = font == static_cast<const void*>(&fonts::efontCN_14)
+        ? FakeFontKind::kChinese
+        : FakeFontKind::kDefault;
   }
 
   void setCursor(int x, int y) {
@@ -186,25 +200,67 @@ struct FakeDisplay {
   }
 
   void print(const char* text) {
-    prints.push_back({cursorX, cursorY, textSize, text != nullptr ? text : ""});
+    prints.push_back({cursorX, cursorY, textSize, fontKind, text != nullptr ? text : ""});
+    cursorX += textWidth(text);
   }
 
   void println(const char* text) {
     print(text);
+    cursorX = 0;
+    cursorY += lineHeightFor(fontKind) * textSize;
   }
 
   void println() {
+    cursorX = 0;
+    cursorY += lineHeightFor(fontKind) * textSize;
+  }
+
+  static int utf8CodePointCount(const char* text) {
+    if (text == nullptr) {
+      return 0;
+    }
+
+    int count = 0;
+    for (const unsigned char* cursor = reinterpret_cast<const unsigned char*>(text); *cursor != 0; ++cursor) {
+      if ((*cursor & 0xC0) != 0x80) {
+        ++count;
+      }
+    }
+    return count;
+  }
+
+  static int codePointWidthFor(FakeFontKind kind, unsigned char leadByte) {
+    if (kind == FakeFontKind::kDefault) {
+      return 8;
+    }
+
+    if (leadByte < 0x80 || (leadByte & 0xE0) == 0xC0) {
+      return 9;
+    }
+
+    return 12;
   }
 
   int textWidth(const char* text) const {
-    return static_cast<int>(std::strlen(text != nullptr ? text : "")) * textSize * 8;
+    if (text == nullptr) {
+      return 0;
+    }
+
+    int width = 0;
+    for (const unsigned char* cursor = reinterpret_cast<const unsigned char*>(text); *cursor != 0; ++cursor) {
+      if ((*cursor & 0xC0) != 0x80) {
+        width += codePointWidthFor(fontKind, *cursor) * textSize;
+      }
+    }
+    return width;
   }
 
   void drawRect(int x, int y, int w, int h, std::uint32_t color) {
     rects.push_back({x, y, w, h, color});
   }
 
-  void fillRect(int, int, int, int, std::uint32_t) {
+  void fillRect(int x, int y, int w, int h, std::uint32_t color) {
+    rects.push_back({x, y, w, h, color});
   }
 
   void startWrite() {
@@ -230,6 +286,8 @@ struct FakeCanvas {
   int cursorX = 0;
   int cursorY = 0;
   int textSize = 1;
+  FakeFontKind fontKind = FakeFontKind::kDefault;
+  int lineStartX = 0;
 
   explicit FakeCanvas(FakeDisplay* display) : parent(display) {
   }
@@ -278,12 +336,19 @@ struct FakeCanvas {
     }
   }
 
-  void setFont(const void*) {
+  void setFont(const void* font) {
+    fontKind = font == static_cast<const void*>(&fonts::efontCN_14)
+        ? FakeFontKind::kChinese
+        : FakeFontKind::kDefault;
+    if (parent != nullptr) {
+      parent->fontKind = fontKind;
+    }
   }
 
   void setCursor(int x, int y) {
     cursorX = x;
     cursorY = y;
+    lineStartX = x;
     if (parent != nullptr) {
       parent->cursorX = x;
       parent->cursorY = y;
@@ -294,22 +359,42 @@ struct FakeCanvas {
     if (parent != nullptr) {
       parent->cursorX = cursorX;
       parent->cursorY = cursorY;
-      parent->prints.push_back({cursorX, cursorY, textSize, text != nullptr ? text : ""});
+      parent->prints.push_back({cursorX, cursorY, textSize, fontKind, text != nullptr ? text : ""});
     }
+    cursorX += textWidth(text);
   }
 
   void println(const char* text) {
     print(text);
+    cursorX = lineStartX;
+    cursorY += FakeDisplay::lineHeightFor(fontKind) * textSize;
+    if (parent != nullptr) {
+      parent->cursorX = cursorX;
+      parent->cursorY = cursorY;
+    }
   }
 
   void println() {
+    cursorX = lineStartX;
+    cursorY += FakeDisplay::lineHeightFor(fontKind) * textSize;
+    if (parent != nullptr) {
+      parent->cursorX = cursorX;
+      parent->cursorY = cursorY;
+    }
   }
 
   int textWidth(const char* text) const {
-    if (parent != nullptr) {
-      return parent->textWidth(text);
+    if (text == nullptr) {
+      return 0;
     }
-    return static_cast<int>(std::strlen(text != nullptr ? text : "")) * textSize * 8;
+
+    int width = 0;
+    for (const unsigned char* cursor = reinterpret_cast<const unsigned char*>(text); *cursor != 0; ++cursor) {
+      if ((*cursor & 0xC0) != 0x80) {
+        width += FakeDisplay::codePointWidthFor(fontKind, *cursor) * textSize;
+      }
+    }
+    return width;
   }
 
   void drawRect(int x, int y, int w, int h, std::uint32_t color) {
@@ -318,7 +403,10 @@ struct FakeCanvas {
     }
   }
 
-  void fillRect(int, int, int, int, std::uint32_t) {
+  void fillRect(int x, int y, int w, int h, std::uint32_t color) {
+    if (parent != nullptr) {
+      parent->rects.push_back({x, y, w, h, color});
+    }
   }
 
   void pushSprite(int, int) {

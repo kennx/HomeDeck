@@ -9,7 +9,14 @@
 
 namespace {
 
-void drawQrCode(M5Canvas& canvas, const std::string& payload) {
+constexpr int kLeft = 20;
+constexpr int kTop = 20;
+constexpr int kTextSize = 2;
+constexpr int kNormalLineHeight = 24;
+constexpr int kMixedLineHeight = 28;
+constexpr int kQrTopGap = 8;
+
+void drawQrCode(M5Canvas& canvas, const std::string& payload, int originY) {
   QRCode qrcode;
   uint8_t modules[qrcode_getBufferSize(4)];
   qrcode_initText(&qrcode, modules, 4, ECC_LOW, payload.c_str());
@@ -19,7 +26,6 @@ void drawQrCode(M5Canvas& canvas, const std::string& payload) {
   const int qrSize = qrcode.size;
   const int totalSize = (qrSize + kQuietZone * 2) * kScale;
   const int originX = canvas.width() - totalSize - 20;
-  const int originY = 120;
 
   canvas.fillRect(originX, originY, totalSize, totalSize, TFT_WHITE);
 
@@ -43,19 +49,43 @@ void SetupRenderer::render(const char* apSsid, const char* ipText) {
   canvas.createSprite(M5.Display.width(), M5.Display.height());
   canvas.fillSprite(TFT_WHITE);
   canvas.setTextColor(TFT_BLACK, TFT_WHITE);
-  canvas.setFont(&fonts::efontCN_14);
-  canvas.setTextSize(2);
-  canvas.setCursor(20, 20);
-  canvas.println("HomeDeck 配网");
-  canvas.println();
-  canvas.println("1. 连接开放热点");
-  canvas.println(apSsid);
-  canvas.println();
-  canvas.println("2. 打开 192.168.4.1");
-  canvas.print("当前热点 IP: ");
-  canvas.println(ipText);
+  canvas.setTextWrap(false);
+  canvas.setTextSize(kTextSize);
 
-  drawQrCode(canvas, homedeck::buildWifiQrPayload(apSsid));
+  int y = kTop;
+
+  canvas.setFont(&fonts::efontCN_14);
+  canvas.setCursor(kLeft, y);
+  canvas.print("HomeDeck 配网");
+  y += kNormalLineHeight;
+
+  canvas.setCursor(kLeft, y);
+  canvas.print("1. 连接开放热点");
+  y += kNormalLineHeight;
+
+  canvas.setFont(nullptr);
+  canvas.setCursor(kLeft, y);
+  canvas.print(apSsid);
+  y += 20;
+
+  canvas.setFont(&fonts::efontCN_14);
+  canvas.setCursor(kLeft, y);
+  canvas.print("2. 打开 ");
+
+  const int step2ValueX = kLeft + canvas.textWidth("2. 打开 ");
+  canvas.setFont(nullptr);
+  canvas.setCursor(step2ValueX, y);
+  canvas.print(ipText);
+  y += kMixedLineHeight;
+
+  canvas.setFont(&fonts::efontCN_14);
+  canvas.setCursor(kLeft, y);
+  canvas.print("当前热点 IP: ");
+
+  canvas.setFont(nullptr);
+  canvas.print(ipText);
+
+  drawQrCode(canvas, homedeck::buildWifiQrPayload(apSsid), y + kMixedLineHeight + kQrTopGap);
 
   M5.Display.startWrite();
   canvas.pushSprite(0, 0);
