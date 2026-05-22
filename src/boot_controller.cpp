@@ -21,8 +21,8 @@
 
 namespace {
 
-constexpr unsigned long kRefreshIntervalMs = 30UL * 60UL * 1000UL;
-constexpr unsigned long kSensorSampleIntervalMs = 60UL * 1000UL;
+constexpr unsigned long kRefreshIntervalMs = 5UL * 60UL * 1000UL;
+constexpr unsigned long kSensorSampleIntervalMs = 5UL * 60UL * 1000UL;
 constexpr unsigned long kNetworkRetryIntervalMs = 60UL * 1000UL;
 
 std::string makeIsoTimestamp(const TimeSnapshot& snapshot) {
