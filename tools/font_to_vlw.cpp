@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -18,8 +19,8 @@ struct Glyph {
   std::uint32_t height = 0;
   std::uint32_t width = 0;
   std::uint32_t x_advance = 0;
-  std::uint32_t d_y = 0;
-  std::uint32_t d_x = 0;
+  std::int32_t d_y = 0;
+  std::int32_t d_x = 0;
   std::vector<std::uint8_t> bitmap;
 };
 
@@ -151,12 +152,74 @@ Glyph renderGlyph(FT_Face face, std::uint32_t code_point) {
   glyph.height = slot->bitmap.rows;
   glyph.width = slot->bitmap.width;
   glyph.x_advance = rounded26Dot6(slot->advance.x);
-  glyph.d_y = static_cast<std::uint32_t>(
-      static_cast<std::int32_t>(slot->bitmap_top));
-  glyph.d_x = static_cast<std::uint32_t>(
-      static_cast<std::int32_t>(slot->bitmap_left));
+  glyph.d_y = slot->bitmap_top;
+  glyph.d_x = slot->bitmap_left;
   glyph.bitmap = copyBitmap(slot->bitmap);
   return glyph;
+}
+
+void printGlyphValidationError(const Glyph& glyph,
+                               const char* field,
+                               std::int64_t value) {
+  std::cerr << "invalid VLW glyph U+" << std::uppercase << std::hex
+            << std::setw(4) << std::setfill('0') << glyph.code_point
+            << std::dec << std::setfill(' ') << ": " << field << "="
+            << value << "\n";
+}
+
+bool validateGlyphs(const std::vector<Glyph>& glyphs) {
+  bool valid = true;
+  if (glyphs.size() > std::numeric_limits<std::uint16_t>::max()) {
+    std::cerr << "invalid VLW font: glyphCount=" << glyphs.size() << "\n";
+    valid = false;
+  }
+
+  std::uint32_t previous_code_point = 0;
+  for (std::size_t index = 0; index < glyphs.size(); ++index) {
+    const Glyph& glyph = glyphs[index];
+    if (glyph.code_point > 0xFFFF) {
+      printGlyphValidationError(glyph, "codePoint", glyph.code_point);
+      valid = false;
+    }
+    if (index > 0 && glyph.code_point <= previous_code_point) {
+      printGlyphValidationError(glyph, "codePointOrder", glyph.code_point);
+      valid = false;
+    }
+    previous_code_point = glyph.code_point;
+
+    if (glyph.height > 255) {
+      printGlyphValidationError(glyph, "height", glyph.height);
+      valid = false;
+    }
+    if (glyph.width > 255) {
+      printGlyphValidationError(glyph, "width", glyph.width);
+      valid = false;
+    }
+    if (glyph.x_advance > 255) {
+      printGlyphValidationError(glyph, "xAdvance", glyph.x_advance);
+      valid = false;
+    }
+    if (glyph.d_x < -128 || glyph.d_x > 127) {
+      printGlyphValidationError(glyph, "dX", glyph.d_x);
+      valid = false;
+    }
+    if (glyph.d_y < -32768 || glyph.d_y > 32767) {
+      printGlyphValidationError(glyph, "dY", glyph.d_y);
+      valid = false;
+    }
+
+    const std::uint64_t expected_bitmap_size =
+        static_cast<std::uint64_t>(glyph.width) * glyph.height;
+    if (glyph.bitmap.size() != expected_bitmap_size) {
+      printGlyphValidationError(
+          glyph,
+          "bitmapSize",
+          static_cast<std::int64_t>(glyph.bitmap.size()));
+      valid = false;
+    }
+  }
+
+  return valid;
 }
 
 void writeVlw(const std::string& path,
@@ -181,14 +244,19 @@ void writeVlw(const std::string& path,
     writeBigEndian32(output, glyph.height);
     writeBigEndian32(output, glyph.width);
     writeBigEndian32(output, glyph.x_advance);
-    writeBigEndian32(output, glyph.d_y);
-    writeBigEndian32(output, glyph.d_x);
+    writeBigEndian32(output, static_cast<std::uint32_t>(glyph.d_y));
+    writeBigEndian32(output, static_cast<std::uint32_t>(glyph.d_x));
     writeBigEndian32(output, 0);
   }
 
   for (const Glyph& glyph : glyphs) {
     output.write(reinterpret_cast<const char*>(glyph.bitmap.data()),
                  static_cast<std::streamsize>(glyph.bitmap.size()));
+  }
+
+  output.close();
+  if (!output) {
+    throw std::runtime_error("failed to write complete VLW file: " + path);
   }
 }
 
@@ -242,6 +310,9 @@ int run(int argc, char** argv) {
   glyphs.reserve(code_points.size());
   for (const std::uint32_t code_point : code_points) {
     glyphs.push_back(renderGlyph(face.get(), code_point));
+  }
+  if (!validateGlyphs(glyphs)) {
+    return 1;
   }
 
   const std::uint32_t y_advance =

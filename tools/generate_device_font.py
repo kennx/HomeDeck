@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import shlex
 import subprocess
 from pathlib import Path
@@ -90,18 +91,24 @@ def write_codepoints(codepoints: list[int]) -> None:
 
 
 def freetype_flags(flag: str) -> list[str]:
-    try:
-        output = subprocess.check_output(["freetype-config", flag], text=True)
-    except FileNotFoundError as error:
-        raise SystemExit("freetype-config not found; install FreeType development tools") from error
-    return shlex.split(output.strip())
+    commands = (
+        ["freetype-config", flag],
+        ["pkg-config", flag, "freetype2"],
+    )
+    for command in commands:
+        try:
+            output = subprocess.check_output(command, text=True)
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            continue
+        return shlex.split(output.strip())
+    raise SystemExit("FreeType development flags not found")
 
 
 def compile_encoder() -> None:
     cflags = freetype_flags("--cflags")
     libs = freetype_flags("--libs")
     command = [
-        "c++",
+        os.environ.get("CXX", "c++"),
         "-std=c++17",
         "-O2",
         *cflags,
