@@ -182,6 +182,13 @@ struct FakeDisplay {
     prints.push_back({cursorX, cursorY, textSize, text != nullptr ? text : ""});
   }
 
+  void println(const char* text) {
+    print(text);
+  }
+
+  void println() {
+  }
+
   int textWidth(const char* text) const {
     return static_cast<int>(std::strlen(text != nullptr ? text : "")) * textSize * 8;
   }
@@ -189,12 +196,146 @@ struct FakeDisplay {
   void drawRect(int x, int y, int w, int h, std::uint32_t color) {
     rects.push_back({x, y, w, h, color});
   }
+
+  void fillRect(int, int, int, int, std::uint32_t) {
+  }
+
+  void startWrite() {
+  }
+
+  void endWrite() {
+  }
+
+  void waitDisplay() {
+  }
+
+  void setEpdMode(int) {
+  }
+};
+
+// FakeCanvas mirrors M5Canvas API. It records drawn content into the
+// parent FakeDisplay so existing tests can inspect what was rendered.
+struct FakeCanvas {
+  FakeDisplay* parent = nullptr;
+  int spriteWidth = 0;
+  int spriteHeight = 0;
+  bool created = false;
+  int cursorX = 0;
+  int cursorY = 0;
+  int textSize = 1;
+
+  explicit FakeCanvas(FakeDisplay* display) : parent(display) {
+  }
+
+  void createSprite(int w, int h) {
+    spriteWidth = w;
+    spriteHeight = h;
+    created = true;
+  }
+
+  void deleteSprite() {
+    created = false;
+  }
+
+  int width() const {
+    return spriteWidth;
+  }
+
+  int height() const {
+    return spriteHeight;
+  }
+
+  void fillSprite(std::uint32_t color) {
+    if (parent != nullptr) {
+      parent->fillScreenColor = color;
+    }
+  }
+
+  void setTextColor(std::uint32_t fg, std::uint32_t bg) {
+    if (parent != nullptr) {
+      parent->textColor = fg;
+      parent->textBackground = bg;
+    }
+  }
+
+  void setTextWrap(bool value) {
+    if (parent != nullptr) {
+      parent->textWrap = value;
+    }
+  }
+
+  void setTextSize(int value) {
+    textSize = value;
+    if (parent != nullptr) {
+      parent->textSize = value;
+    }
+  }
+
+  void setCursor(int x, int y) {
+    cursorX = x;
+    cursorY = y;
+    if (parent != nullptr) {
+      parent->cursorX = x;
+      parent->cursorY = y;
+    }
+  }
+
+  void print(const char* text) {
+    if (parent != nullptr) {
+      parent->cursorX = cursorX;
+      parent->cursorY = cursorY;
+      parent->prints.push_back({cursorX, cursorY, textSize, text != nullptr ? text : ""});
+    }
+  }
+
+  void println(const char* text) {
+    print(text);
+  }
+
+  void println() {
+  }
+
+  int textWidth(const char* text) const {
+    if (parent != nullptr) {
+      return parent->textWidth(text);
+    }
+    return static_cast<int>(std::strlen(text != nullptr ? text : "")) * textSize * 8;
+  }
+
+  void drawRect(int x, int y, int w, int h, std::uint32_t color) {
+    if (parent != nullptr) {
+      parent->rects.push_back({x, y, w, h, color});
+    }
+  }
+
+  void fillRect(int, int, int, int, std::uint32_t) {
+  }
+
+  void pushSprite(int, int) {
+  }
+};
+
+using M5Canvas = FakeCanvas;
+
+struct FakeButton {
+  bool pressed = false;
+  bool isPressed() const {
+    return pressed;
+  }
 };
 
 struct FakeM5Global {
   FakeRtc Rtc;
   FakeI2C In_I2C;
   FakeDisplay Display;
+  FakeButton BtnA;
+  FakeButton BtnB;
+
+  void begin() {
+  }
+
+  void update() {
+  }
 };
 
 extern FakeM5Global M5;

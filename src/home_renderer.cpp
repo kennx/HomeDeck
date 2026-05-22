@@ -38,21 +38,21 @@ void trimLastUtf8CodePoint(std::string* text) {
   text->erase(index);
 }
 
-std::string fitText(int size, int maxWidth, const std::string& text) {
-  M5.Display.setTextSize(size);
+std::string fitText(M5Canvas& canvas, int size, int maxWidth, const std::string& text) {
+  canvas.setTextSize(size);
   if (maxWidth <= 0 || text.empty()) {
     return "";
   }
 
-  if (M5.Display.textWidth(text.c_str()) <= maxWidth) {
+  if (canvas.textWidth(text.c_str()) <= maxWidth) {
     return text;
   }
 
   std::string fitted = text;
   constexpr const char* kEllipsis = "...";
-  const int ellipsisWidth = M5.Display.textWidth(kEllipsis);
+  const int ellipsisWidth = canvas.textWidth(kEllipsis);
   if (ellipsisWidth > maxWidth) {
-    while (!fitted.empty() && M5.Display.textWidth(fitted.c_str()) > maxWidth) {
+    while (!fitted.empty() && canvas.textWidth(fitted.c_str()) > maxWidth) {
       trimLastUtf8CodePoint(&fitted);
     }
     return fitted;
@@ -61,7 +61,7 @@ std::string fitText(int size, int maxWidth, const std::string& text) {
   while (!fitted.empty()) {
     trimLastUtf8CodePoint(&fitted);
     const std::string candidate = fitted + kEllipsis;
-    if (M5.Display.textWidth(candidate.c_str()) <= maxWidth) {
+    if (canvas.textWidth(candidate.c_str()) <= maxWidth) {
       return candidate;
     }
   }
@@ -69,66 +69,69 @@ std::string fitText(int size, int maxWidth, const std::string& text) {
   return kEllipsis;
 }
 
-void drawText(int x, int y, int size, const std::string& text, int maxWidth) {
-  M5.Display.setTextSize(size);
-  M5.Display.setCursor(x, y);
-  M5.Display.print(fitText(size, maxWidth, text).c_str());
+void drawText(M5Canvas& canvas, int x, int y, int size, const std::string& text, int maxWidth) {
+  canvas.setTextSize(size);
+  canvas.setCursor(x, y);
+  canvas.print(fitText(canvas, size, maxWidth, text).c_str());
 }
 
-void drawMetricBox(int x, int y, const char* label, const std::string& value) {
-  M5.Display.drawRect(x, y, kMetricBoxWidth, kMetricBoxHeight, TFT_BLACK);
+void drawMetricBox(M5Canvas& canvas, int x, int y, const char* label, const std::string& value) {
+  canvas.drawRect(x, y, kMetricBoxWidth, kMetricBoxHeight, TFT_BLACK);
 
-  drawText(x + 12, y + 12, 2, label, kMetricBoxWidth - 24);
-  drawText(x + 12, y + 44, 4, value, kMetricBoxWidth - 24);
+  drawText(canvas, x + 12, y + 12, 2, label, kMetricBoxWidth - 24);
+  drawText(canvas, x + 12, y + 44, 4, value, kMetricBoxWidth - 24);
 }
 
-void drawEventRow(int x, int y, const homedeck::EventRow& row) {
+void drawEventRow(M5Canvas& canvas, int x, int y, const homedeck::EventRow& row) {
   if (row.timeText.empty()) {
-    drawText(x, y, 2, row.titleText, M5.Display.width() - x - kMarginX);
+    drawText(canvas, x, y, 2, row.titleText, canvas.width() - x - kMarginX);
     return;
   }
 
-  drawText(x, y, 2, row.timeText, kEventTimeWidth - 8);
+  drawText(canvas, x, y, 2, row.timeText, kEventTimeWidth - 8);
   drawText(
+      canvas,
       x + kEventTimeWidth,
       y,
       2,
       row.titleText,
-      M5.Display.width() - (x + kEventTimeWidth) - kMarginX);
+      canvas.width() - (x + kEventTimeWidth) - kMarginX);
 }
 
 }  // namespace
 
 void HomeRenderer::render(const homedeck::HomeViewModel& model) {
-  M5.Display.setRotation(3);
-  M5.Display.fillScreen(TFT_WHITE);
-  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
-  M5.Display.setTextWrap(false);
+  M5Canvas canvas(&M5.Display);
+  canvas.createSprite(M5.Display.width(), M5.Display.height());
+  canvas.fillSprite(TFT_WHITE);
+  canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+  canvas.setTextWrap(false);
 
-  const int pageWidth = M5.Display.width();
+  const int pageWidth = canvas.width();
   const int contentWidth = pageWidth - kMarginX * 2;
 
-  drawText(kMarginX, kTimeY, 7, model.timeText.empty() ? "--:--" : model.timeText, contentWidth);
-  drawText(kMarginX, kDateY, 2, model.dateText, contentWidth);
-  drawText(kMarginX, kLunarY, 2, model.lunarText, contentWidth);
-  drawText(kMarginX, kSolarTermY, 2, model.solarTermText, contentWidth);
-  drawText(kMarginX, kHolidayY, 2, model.holidayText, contentWidth);
+  drawText(canvas, kMarginX, kTimeY, 7, model.timeText.empty() ? "--:--" : model.timeText, contentWidth);
+  drawText(canvas, kMarginX, kDateY, 2, model.dateText, contentWidth);
+  drawText(canvas, kMarginX, kLunarY, 2, model.lunarText, contentWidth);
+  drawText(canvas, kMarginX, kSolarTermY, 2, model.solarTermText, contentWidth);
+  drawText(canvas, kMarginX, kHolidayY, 2, model.holidayText, contentWidth);
 
-  drawMetricBox(kMarginX, kMetricBoxY, "温度", model.temperatureText);
-  drawMetricBox(kHumidityBoxX, kMetricBoxY, "湿度", model.humidityText);
+  drawMetricBox(canvas, kMarginX, kMetricBoxY, "温度", model.temperatureText);
+  drawMetricBox(canvas, kHumidityBoxX, kMetricBoxY, "湿度", model.humidityText);
 
-  drawText(kMarginX, kEventsTitleY, 2, "今日日程", contentWidth);
+  drawText(canvas, kMarginX, kEventsTitleY, 2, "今日日程", contentWidth);
 
   const std::uint32_t visibleCount = std::min<std::uint32_t>(
       model.eventCount,
       static_cast<std::uint32_t>(model.eventRows.size()));
   if (visibleCount == 0) {
     if (!model.eventRows[0].titleText.empty()) {
-      drawEventRow(kMarginX, kEventListY, model.eventRows[0]);
+      drawEventRow(canvas, kMarginX, kEventListY, model.eventRows[0]);
     }
   } else {
     for (std::uint32_t index = 0; index < visibleCount; ++index) {
       drawEventRow(
+          canvas,
           kMarginX,
           kEventListY + static_cast<int>(index) * kEventRowHeight,
           model.eventRows[index]);
@@ -137,6 +140,7 @@ void HomeRenderer::render(const homedeck::HomeViewModel& model) {
 
   if (model.eventCount > visibleCount) {
     drawText(
+        canvas,
         kMarginX,
         kEventFooterY,
         2,
@@ -144,5 +148,11 @@ void HomeRenderer::render(const homedeck::HomeViewModel& model) {
         contentWidth);
   }
 
-  drawText(kMarginX, kStatusY, 2, homedeck::buildStatusText(model), contentWidth);
+  drawText(canvas, kMarginX, kStatusY, 2, homedeck::buildStatusText(model), contentWidth);
+
+  M5.Display.startWrite();
+  canvas.pushSprite(0, 0);
+  M5.Display.endWrite();
+  M5.Display.waitDisplay();
+  canvas.deleteSprite();
 }

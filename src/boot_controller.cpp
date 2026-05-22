@@ -24,7 +24,7 @@ namespace {
 
 constexpr unsigned long kRefreshIntervalMs = 60UL * 60UL * 1000UL;
 constexpr unsigned long kSensorSampleIntervalMs = 60UL * 1000UL;
-constexpr unsigned long kNetworkRetryIntervalMs = 5UL * 1000UL;
+constexpr unsigned long kNetworkRetryIntervalMs = 60UL * 1000UL;
 
 std::string makeIsoTimestamp(const TimeSnapshot& snapshot) {
   return snapshot.dateText + " " + snapshot.timeText;
@@ -130,8 +130,8 @@ BootControllerDeps makeDefaultBootControllerDeps() {
   };
   deps.handleSetupPortalClient = []() { portal.handleClient(); };
   deps.renderSetupScreen =
-      [](const std::string& apSsid, const std::string&) {
-        setupRenderer.render(apSsid.c_str(), WiFi.softAPIP());
+      [](const std::string& apSsid, const std::string& ipText) {
+        setupRenderer.render(apSsid.c_str(), ipText.c_str());
       };
   deps.timeBegin = [](const char* timezonePosix, const char* ntpServer) {
     return timeService.begin(timezonePosix, ntpServer);
@@ -253,11 +253,11 @@ void BootController::enterAccessPointMode(const homedeck::SetupConfig& config) {
     return deps_.saveSetupConfig ? deps_.saveSetupConfig(saved) : false;
   };
 
-  if (deps_.renderSetupScreen) {
-    deps_.renderSetupScreen(apSsid, "192.168.4.1");
-  }
   if (deps_.beginSetupPortal) {
     deps_.beginSetupPortal(apSsid, config, onSave);
+  }
+  if (deps_.renderSetupScreen) {
+    deps_.renderSetupScreen(apSsid, "192.168.4.1");
   }
 }
 

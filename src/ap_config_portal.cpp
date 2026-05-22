@@ -33,6 +33,7 @@ void ApConfigPortal::begin(
 
   WiFi.mode(WIFI_AP);
   WiFi.softAP(apSsid);
+  delay(100);
 
   server_.on("/", HTTP_GET, [this]() { handleIndex(); });
   server_.on("/save", HTTP_POST, [this]() { handleSave(); });

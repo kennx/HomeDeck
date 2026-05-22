@@ -468,8 +468,8 @@ void test_update_retries_network_before_one_hour_when_first_attempt_failed() {
   runtime.snapshots.push_back({0, TimeSnapshot{"09:30", "2026年5月21日", true, false}});
   runtime.nowMs = 1;
   runtime.snapshots.push_back({1, TimeSnapshot{"09:31", "2026年5月21日", true, false}});
-  runtime.nowMs = 5001;
-  runtime.snapshots.push_back({5001, TimeSnapshot{"09:35", "2026年5月21日", true, false}});
+  runtime.nowMs = 60001;
+  runtime.snapshots.push_back({60001, TimeSnapshot{"09:35", "2026年5月21日", true, false}});
 
   BootController controller(makeDeps(runtime));
   runtime.nowMs = 0;
@@ -483,7 +483,7 @@ void test_update_retries_network_before_one_hour_when_first_attempt_failed() {
   runtime.wifiConnectResult = true;
   runtime.syncTimeResult = true;
   runtime.fetchSucceeds = true;
-  runtime.nowMs = 5001;
+  runtime.nowMs = 60001;
   controller.update();
 
   TEST_ASSERT_EQUAL(2, runtime.connectWifiCalls);
