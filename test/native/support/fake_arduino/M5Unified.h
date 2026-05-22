@@ -249,6 +249,7 @@ struct FakeDisplay {
 
   bool loadFont(const std::uint8_t*) {
     if (!loadFontSucceeds) {
+      fontKind = FakeFontKind::kDefault;
       return false;
     }
     fontKind = FakeFontKind::kDeviceDefault;
@@ -361,6 +362,7 @@ struct FakeCanvas {
 
   bool loadFont(const std::uint8_t* font) {
     if (parent == nullptr || !parent->loadFont(font)) {
+      fontKind = FakeFontKind::kDefault;
       return false;
     }
     fontKind = FakeFontKind::kDeviceDefault;
