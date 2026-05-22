@@ -20,4 +20,5 @@ class TimeService {
   std::string ntpServer_;
   bool rtcAvailable_ = false;
   bool timeSynced_ = false;
+  time_t lastSyncedAt_ = 0;
 };

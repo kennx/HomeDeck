@@ -94,6 +94,7 @@ bool TimeService::begin(const char* timezonePosix, const char* ntpServer) {
   timezonePosix_ = timezonePosix != nullptr ? timezonePosix : "";
   ntpServer_ = ntpServer != nullptr ? ntpServer : "";
   timeSynced_ = false;
+  lastSyncedAt_ = 0;
 
   applyTimezone(timezonePosix_);
 
@@ -145,6 +146,13 @@ bool TimeService::syncFromNtp() {
     return false;
   }
 
+  const time_t now = time(nullptr);
+  if (timeSynced_ && rtcAvailable_ && !M5.Rtc.getVoltLow() &&
+      isSystemTimeValid(now) && lastSyncedAt_ > 0 &&
+      (now - lastSyncedAt_) < (24 * 3600)) {
+    return false;
+  }
+
   gTimeSyncNotified = false;
   sntp_set_time_sync_notification_cb(handleTimeSync);
   applyTimezone(timezonePosix_);
@@ -165,6 +173,7 @@ bool TimeService::syncFromNtp() {
     }
 
     timeSynced_ = true;
+    lastSyncedAt_ = time(nullptr);
     sntp_set_time_sync_notification_cb(nullptr);
     return true;
   }
