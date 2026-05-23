@@ -9,6 +9,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_FONT = ROOT / "fonts" / "NotoSansSC-Regular.ttf"
+BODY_FONT = ROOT / "fonts" / "misans" / "MiSans-Medium.ttf"
+METRIC_FONT = ROOT / "fonts" / "misans" / "MiSans-Bold.ttf"
+TIME_FONT = ROOT / "fonts" / "misans" / "MiSans-Heavy.ttf"
 BODY_PIXEL_SIZE = 14
 METRIC_PIXEL_SIZE = 28
 TIME_PIXEL_SIZE = 42
@@ -221,8 +224,9 @@ namespace homedeck::generated {{
 
 
 def main() -> None:
-    if not SOURCE_FONT.exists():
-        raise SystemExit(f"source font missing: {SOURCE_FONT}")
+    for font_path in (BODY_FONT, METRIC_FONT, TIME_FONT):
+        if not font_path.exists():
+            raise SystemExit(f"source font missing: {font_path}")
 
     body_codepoints = collect_codepoints()
     if len(body_codepoints) < MIN_GLYPH_COUNT:
@@ -233,18 +237,20 @@ def main() -> None:
     numeric_codepoints: set[int] = set()
     collect_text(numeric_codepoints, NUMERIC_TEXT, non_ascii_only=False)
     resources = [
-        FontResource("device_font", "kDevice", BODY_PIXEL_SIZE, body_codepoints),
+        FontResource("device_font", "kDevice", BODY_PIXEL_SIZE, body_codepoints, BODY_FONT),
         FontResource(
             "device_metric_font",
             "kDeviceMetric",
             METRIC_PIXEL_SIZE,
             sorted(numeric_codepoints),
+            METRIC_FONT,
         ),
         FontResource(
             "device_time_font",
             "kDeviceTime",
             TIME_PIXEL_SIZE,
             sorted(numeric_codepoints),
+            TIME_FONT,
         ),
     ]
 
