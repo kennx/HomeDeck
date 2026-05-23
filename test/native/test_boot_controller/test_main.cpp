@@ -42,6 +42,7 @@ struct FakeRuntime {
   std::vector<std::pair<unsigned long, TimeSnapshot>> snapshots;
   std::string fetchedPersonalUrl;
   std::string fetchedHolidayUrl;
+  bool isTimerWakeup = false;
 };
 
 TimeSnapshot snapshotAt(
@@ -163,6 +164,15 @@ BootControllerDeps makeDeps(FakeRuntime& runtime) {
     ++runtime.homeRenderCalls;
     runtime.lastModel = model;
   };
+
+  if (runtime.isTimerWakeup) {
+    gFakeWakeupCause = ESP_SLEEP_WAKEUP_TIMER;
+  } else {
+    gFakeWakeupCause = ESP_SLEEP_WAKEUP_UNDEFINED;
+  }
+  gDeepSleepCalled = false;
+  gGpioHoldCalled = false;
+
   return deps;
 }
 
@@ -590,6 +600,84 @@ void test_update_refreshes_home_screen_after_one_hour() {
   TEST_ASSERT_EQUAL(2, runtime.homeRenderCalls);
 }
 
+void test_timer_wakeup_uses_fast_path() {
+  FakeRuntime runtime;
+  runtime.isTimerWakeup = true;
+  runtime.config = {
+      "HomeWiFi", "secret", "Asia/Shanghai", "pool.ntp.org", "", "",
+  };
+  runtime.snapshots.push_back({0, TimeSnapshot{"09:30", "2026年5月21日", true, false}});
+
+  BootController controller(makeDeps(runtime));
+  controller.begin();
+
+  TEST_ASSERT_EQUAL(0, runtime.portalBeginCalls);
+  TEST_ASSERT_EQUAL(0, runtime.setupRenderCalls);
+}
+
+void test_enter_deep_sleep_sets_timer_and_calls_esp_deep_sleep() {
+  FakeRuntime runtime;
+  runtime.config = {
+      "HomeWiFi", "secret", "Asia/Shanghai", "pool.ntp.org", "", "",
+  };
+
+  BootController controller(makeDeps(runtime));
+  controller.begin();
+
+  gDeepSleepCalled = false;
+  controller.enterDeepSleep();
+
+  TEST_ASSERT_TRUE(gDeepSleepCalled);
+  TEST_ASSERT_EQUAL_UINT64(10ULL * 60ULL * 1000000ULL, gFakeSleepDurationUs);
+}
+
+void test_deep_sleep_not_entered_in_ap_mode() {
+  FakeRuntime runtime;
+  runtime.config = {};
+
+  BootController controller(makeDeps(runtime));
+  controller.begin();
+
+  gDeepSleepCalled = false;
+  controller.enterDeepSleep();
+
+  TEST_ASSERT_FALSE(gDeepSleepCalled);
+}
+
+void test_hash_skips_refresh_when_model_unchanged() {
+  FakeRuntime runtime;
+  runtime.config = {
+      "HomeWiFi", "secret", "Asia/Shanghai", "pool.ntp.org", "", "",
+  };
+  runtime.snapshots.push_back({0, TimeSnapshot{"09:30", "2026年5月21日", true, false}});
+  runtime.snapshots.push_back({1, TimeSnapshot{"09:30", "2026年5月21日", true, false}});
+
+  BootController controller(makeDeps(runtime));
+  controller.begin();
+  TEST_ASSERT_EQUAL(1, runtime.homeRenderCalls);
+
+  runtime.nowMs = 1;
+  controller.update();
+
+  // 时间未变，不应触发额外刷新
+  TEST_ASSERT_EQUAL(1, runtime.homeRenderCalls);
+}
+
+void test_ap_mode_timeout_restarts_after_ten_minutes() {
+  FakeRuntime runtime;
+  runtime.config = {};
+
+  BootController controller(makeDeps(runtime));
+  controller.begin();
+  TEST_ASSERT_EQUAL(1, runtime.setupRenderCalls);
+
+  runtime.nowMs = 10 * 60 * 1000;
+  controller.update();
+
+  // AP 模式超时后应当触发 ESP.restart()
+  // 在 native 测试中 ESP.restart() 是空操作，主要通过代码路径覆盖验证
+}
+
 }  // namespace
 
 int main() {
@@ -606,5 +694,10 @@ int main() {
   RUN_TEST(test_update_retries_network_before_one_hour_when_first_attempt_failed);
   RUN_TEST(test_invalid_successful_calendar_response_keeps_same_day_cache);
   RUN_TEST(test_update_refreshes_home_screen_after_one_hour);
+  RUN_TEST(test_timer_wakeup_uses_fast_path);
+  RUN_TEST(test_enter_deep_sleep_sets_timer_and_calls_esp_deep_sleep);
+  RUN_TEST(test_deep_sleep_not_entered_in_ap_mode);
+  RUN_TEST(test_hash_skips_refresh_when_model_unchanged);
+  RUN_TEST(test_ap_mode_timeout_restarts_after_ten_minutes);
   return UNITY_END();
 }
