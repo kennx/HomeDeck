@@ -473,12 +473,39 @@ struct FakeButton {
   }
 };
 
+struct FakeLed {
+  uint8_t brightness = 0;
+  uint8_t r = 0;
+  uint8_t g = 0;
+  uint8_t b = 0;
+  bool displayed = false;
+
+  void setBrightness(uint8_t val) { brightness = val; }
+  void setAllColor(uint8_t red, uint8_t green, uint8_t blue) {
+    r = red;
+    g = green;
+    b = blue;
+  }
+  void display() { displayed = true; }
+};
+
+struct FakePower {
+  int16_t vbus_voltage = 0;
+  int32_t battery_level = 50;
+
+  int16_t getVBUSVoltage() { return vbus_voltage; }
+  int32_t getBatteryLevel() { return battery_level; }
+  void setLed(uint8_t) {}
+};
+
 struct FakeM5Global {
   FakeRtc Rtc;
   FakeI2C In_I2C;
   FakeDisplay Display;
   FakeButton BtnA;
   FakeButton BtnB;
+  FakeLed Led;
+  FakePower Power;
 
   void begin() {
   }
