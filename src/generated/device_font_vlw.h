@@ -6,7 +6,7 @@
 namespace homedeck::generated {
 
 extern const std::uint8_t kDeviceFontVlw[];
-inline constexpr std::size_t kDeviceFontVlwSize = 2331858U;
+inline constexpr std::size_t kDeviceFontVlwSize = 2511958U;
 inline constexpr std::uint32_t kDeviceFontGlyphCount = 7542U;
 inline constexpr std::uint32_t kDeviceFontPixelSize = 18U;
 

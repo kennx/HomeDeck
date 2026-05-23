@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_FONT = ROOT / "fonts" / "NotoSansSC-Regular.ttf"
-BODY_FONT = ROOT / "fonts" / "misans" / "MiSans-Medium.ttf"
+BODY_FONT = ROOT / "fonts" / "misans" / "NotoSansSC-SemiBold.ttf"
 METRIC_FONT = ROOT / "fonts" / "misans" / "MiSans-Bold.ttf"
 TIME_FONT = ROOT / "fonts" / "misans" / "MiSans-Heavy.ttf"
 BODY_PIXEL_SIZE = 18
