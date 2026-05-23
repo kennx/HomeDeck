@@ -411,11 +411,9 @@ bool BootController::runBackgroundTasks(unsigned long nowMs, TimeSnapshot* snaps
 
   const bool dateChanged = snapshot != nullptr && snapshot->timeValid &&
       snapshot->dateText != activeCalendarDate_;
-  const bool calendarReady = personalCalendarFresh_ && holidayCalendarFresh_;
-  const unsigned long retryInterval = calendarReady ? kRefreshIntervalMs : kNetworkRetryIntervalMs;
-  const bool shouldRunNetworkCycle = !networkCycleStarted_ || dateChanged ||
-      (nowMs - lastNetworkAttemptAtMs_ >= retryInterval);
-  if (!shouldRunNetworkCycle) {
+  if (!networkCycleStarted_ || dateChanged) {
+    // 日期变化或首次启动，立即执行网络周期
+  } else if (!shouldRunNetworkCycle(nowMs)) {
     return shouldRefresh;
   }
 
@@ -424,6 +422,12 @@ bool BootController::runBackgroundTasks(unsigned long nowMs, TimeSnapshot* snaps
   wifiConnected_ = deps_.connectWifi
       ? deps_.connectWifi(config_.wifiSsid, config_.wifiPassword)
       : false;
+
+  if (wifiConnected_) {
+    resetNetworkFailureCount();
+  } else {
+    recordNetworkFailure();
+  }
 
   const bool wasTimeSynced = snapshot != nullptr ? snapshot->timeSynced : false;
   bool timeSyncedNow = false;
@@ -695,6 +699,38 @@ bool BootController::shouldRefreshHome(const TimeSnapshot& snapshot) const {
 
   const unsigned long now = deps_.millis ? deps_.millis() : 0;
   return now - lastRefreshAtMs_ >= kRefreshIntervalMs;
+}
+
+bool BootController::shouldRunNetworkCycle(unsigned long nowMs) const {
+  const bool dateChanged = false;  // 由调用方处理
+  if (dateChanged) {
+    return true;
+  }
+
+  // 指数退避：根据连续失败次数决定间隔
+  unsigned long interval = kRefreshIntervalMs;
+  if (!personalCalendarFresh_ || !holidayCalendarFresh_) {
+    const uint8_t failures = gRtcState.consecutiveNetworkFailures;
+    if (failures >= 5) {
+      interval = 60UL * 60UL * 1000UL;  // 60 分钟
+    } else if (failures >= 3) {
+      interval = 30UL * 60UL * 1000UL;  // 30 分钟
+    } else {
+      interval = kNetworkRetryIntervalMs;  // 60 秒（保持原有）
+    }
+  }
+
+  return !networkCycleStarted_ || (nowMs - lastNetworkAttemptAtMs_ >= interval);
+}
+
+void BootController::recordNetworkFailure() {
+  if (gRtcState.consecutiveNetworkFailures < 255) {
+    gRtcState.consecutiveNetworkFailures++;
+  }
+}
+
+void BootController::resetNetworkFailureCount() {
+  gRtcState.consecutiveNetworkFailures = 0;
 }
 
 void BootController::saveStateToRtcMemory() {
