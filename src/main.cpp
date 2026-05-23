@@ -14,4 +14,5 @@ void setup() {
 
 void loop() {
   gBootController.update();
+  gBootController.enterDeepSleep();
 }
