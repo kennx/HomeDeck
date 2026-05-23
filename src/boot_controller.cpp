@@ -117,9 +117,9 @@ BootControllerDeps makeDefaultBootControllerDeps() {
       WiFi.mode(WIFI_STA);
     }
 
-    WiFi.disconnect(false, true);
-    delay(100);
-
+    if (WiFi.status() == WL_CONNECTED) {
+      return true;
+    }
     WiFi.begin(ssid.c_str(), password.c_str());
     for (int attempt = 0; attempt < 40; ++attempt) {
       if (WiFi.status() == WL_CONNECTED) {
