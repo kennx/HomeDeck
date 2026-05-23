@@ -243,7 +243,6 @@ BootController::BootController(BootControllerDeps deps) : deps_(std::move(deps))
 }
 
 void BootController::begin() {
-  ledService_.begin();
   if (started_) {
     return;
   }
@@ -252,6 +251,8 @@ void BootController::begin() {
   if (deps_.m5Begin) {
     deps_.m5Begin();
   }
+  ledService_.begin();
+
   if (deps_.m5Update) {
     deps_.m5Update();
   }
