@@ -38,11 +38,13 @@ class FontResource:
         symbol_prefix: str,
         pixel_size: int,
         codepoints: list[int],
+        ttf_path: Path = SOURCE_FONT,
     ) -> None:
         self.name = name
         self.symbol_prefix = symbol_prefix
         self.pixel_size = pixel_size
         self.codepoints = codepoints
+        self.ttf_path = ttf_path
         self.codepoints_path = BUILD_DIR / f"{name}_codepoints.txt"
         self.vlw_path = BUILD_DIR / f"{name}.vlw"
         self.vlw_data = b""
