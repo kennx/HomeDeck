@@ -290,25 +290,21 @@ int run(int argc, char** argv) {
     throw std::runtime_error("failed to set FreeType pixel size");
   }
 
-  std::vector<std::uint32_t> missing;
+  std::vector<std::uint32_t> available_code_points;
+  available_code_points.reserve(code_points.size());
   for (const std::uint32_t code_point : code_points) {
     if (FT_Get_Char_Index(face.get(), code_point) == 0) {
-      missing.push_back(code_point);
+      std::cerr << "missing glyph: U+" << std::uppercase << std::hex
+                << std::setw(4) << std::setfill('0') << code_point
+                << std::dec << "\n";
+    } else {
+      available_code_points.push_back(code_point);
     }
-  }
-  if (!missing.empty()) {
-    std::cerr << "missing glyphs:";
-    for (const std::uint32_t code_point : missing) {
-      std::cerr << " U+" << std::uppercase << std::hex << std::setw(4)
-                << std::setfill('0') << code_point;
-    }
-    std::cerr << std::dec << "\n";
-    return 1;
   }
 
   std::vector<Glyph> glyphs;
-  glyphs.reserve(code_points.size());
-  for (const std::uint32_t code_point : code_points) {
+  glyphs.reserve(available_code_points.size());
+  for (const std::uint32_t code_point : available_code_points) {
     glyphs.push_back(renderGlyph(face.get(), code_point));
   }
   if (!validateGlyphs(glyphs)) {
