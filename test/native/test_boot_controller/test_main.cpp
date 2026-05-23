@@ -1098,6 +1098,35 @@ void test_boot_controller_defer_sleep_when_battery_low() {
   TEST_ASSERT_TRUE(gDeepSleepCalled);
 }
 
+void test_boot_controller_restarts_low_battery_warning_after_usb_disconnect() {
+  resetNativeFakes();
+  M5.Power.vbus_voltage = 0;
+  M5.Power.battery_level = 3;
+
+  FakeRuntime runtime;
+  runtime.config = {
+      "HomeWiFi", "secret", "Asia/Shanghai", "pool.ntp.org", "", "",
+  };
+
+  BootController controller(makeDeps(runtime));
+  controller.begin();
+
+  gDeepSleepCalled = false;
+  fakeArduinoSetMillis(1000);
+  controller.enterDeepSleep();
+  TEST_ASSERT_FALSE(gDeepSleepCalled);
+
+  M5.Power.vbus_voltage = 5000;
+  fakeArduinoSetMillis(32000);
+  controller.enterDeepSleep();
+  TEST_ASSERT_FALSE(gDeepSleepCalled);
+
+  M5.Power.vbus_voltage = 0;
+  fakeArduinoSetMillis(33000);
+  controller.enterDeepSleep();
+  TEST_ASSERT_FALSE(gDeepSleepCalled);
+}
+
 }  // namespace
 
 int main() {
@@ -1133,5 +1162,6 @@ int main() {
   RUN_TEST(test_boot_controller_no_sleep_when_charging);
   RUN_TEST(test_boot_controller_sleep_immediately_when_battery_high);
   RUN_TEST(test_boot_controller_defer_sleep_when_battery_low);
+  RUN_TEST(test_boot_controller_restarts_low_battery_warning_after_usb_disconnect);
   return UNITY_END();
 }

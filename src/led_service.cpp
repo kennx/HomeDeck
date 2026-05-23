@@ -3,14 +3,64 @@
 #include <M5Unified.h>
 #include <cmath>
 
+static constexpr uint8_t LED_COUNT = 2;
+
 #if !defined(UNIT_TEST)
 #include <Adafruit_NeoPixel.h>
 
 static constexpr uint8_t LED_PIN   = 21;
-static constexpr uint8_t LED_COUNT = 2;
 
 static Adafruit_NeoPixel pixels(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 static bool neopixelReady = false;
+#else
+namespace {
+
+LedServicePixelState pixelState;
+
+class TestNeoPixels {
+ public:
+  void begin() {
+    pixelState.begun = true;
+  }
+
+  void setBrightness(std::uint8_t brightness) {
+    pixelState.brightness = brightness;
+  }
+
+  std::uint32_t Color(std::uint8_t r, std::uint8_t g, std::uint8_t b) const {
+    return (static_cast<std::uint32_t>(r) << 16) |
+           (static_cast<std::uint32_t>(g) << 8) |
+           static_cast<std::uint32_t>(b);
+  }
+
+  void setPixelColor(std::uint8_t index, std::uint32_t color) {
+    if (index >= LED_COUNT) {
+      return;
+    }
+
+    pixelState.r[index] = static_cast<std::uint8_t>((color >> 16) & 0xFF);
+    pixelState.g[index] = static_cast<std::uint8_t>((color >> 8) & 0xFF);
+    pixelState.b[index] = static_cast<std::uint8_t>(color & 0xFF);
+  }
+
+  void show() {
+    ++pixelState.showCalls;
+  }
+};
+
+TestNeoPixels pixels;
+bool neopixelReady = false;
+
+}  // namespace
+
+const LedServicePixelState& ledServicePixelStateForTest() {
+  return pixelState;
+}
+
+void resetLedServicePixelStateForTest() {
+  pixelState = LedServicePixelState{};
+  neopixelReady = false;
+}
 #endif
 
 bool LedService::begin() {
@@ -33,6 +83,10 @@ bool LedService::begin() {
   pixels.setBrightness(80);
   neopixelReady = true;
   Serial.println("[LedService] Adafruit_NeoPixel initialized on GPIO21.");
+#else
+  pixels.begin();
+  pixels.setBrightness(80);
+  neopixelReady = true;
 #endif
 
   turnOff();
@@ -57,18 +111,12 @@ int LedService::getBatteryLevel() const {
 }
 
 void LedService::setRgb(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t brightness) {
-#if !defined(UNIT_TEST)
   if (neopixelReady) {
     pixels.setBrightness(brightness);
     pixels.setPixelColor(0, pixels.Color(r, g, b));
     pixels.setPixelColor(1, pixels.Color(r, g, b));
     pixels.show();
   }
-#else
-  M5.Led.setBrightness(brightness);
-  M5.Led.setAllColor(r, g, b);
-  M5.Led.display();
-#endif
 }
 
 void LedService::turnOff() {

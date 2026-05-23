@@ -142,5 +142,6 @@ class BootController {
   uint32_t lastNetworkAttemptWakeupCount_ = 0;
   uint32_t lastModelHash_ = 0;
   unsigned long apModeStartAtMs_ = 0;
+  unsigned long lowBatteryWarningStartMs_ = 0;
   LedService ledService_;
 };

@@ -909,21 +909,23 @@ void BootController::enterDeepSleep() {
 
   // 1. 如果正在充电（USB 接入），阻止进入 Deep Sleep，保持 Active 状态
   if (ledService_.isUsbConnected()) {
+    lowBatteryWarningStartMs_ = 0;
     return;
   }
 
   // 2. 如果是电池供电且电量 < 5%，延迟 30 秒进入 Deep Sleep 并在闪烁警告后休眠
   int batteryLevel = ledService_.getBatteryLevel();
   if (batteryLevel >= 0 && batteryLevel < 5) {
-    static unsigned long warningStartMs = 0;
-    if (warningStartMs == 0) {
-      warningStartMs = deps_.millis ? deps_.millis() : 0;
+    if (lowBatteryWarningStartMs_ == 0) {
+      lowBatteryWarningStartMs_ = deps_.millis ? deps_.millis() : 0;
     }
     unsigned long now = deps_.millis ? deps_.millis() : 0;
-    if (now - warningStartMs < 30000UL) {
+    if (now - lowBatteryWarningStartMs_ < 30000UL) {
       return; // 暂不休眠，继续通过主 loop 更新闪烁
     }
-    warningStartMs = 0; // 闪烁完毕，重置计数器
+    lowBatteryWarningStartMs_ = 0; // 闪烁完毕，重置计数器
+  } else {
+    lowBatteryWarningStartMs_ = 0;
   }
 
   // 3. 只有在进入 Deep Sleep 前才熄灭指示灯，降功耗

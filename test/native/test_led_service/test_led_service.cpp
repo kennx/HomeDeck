@@ -10,6 +10,7 @@ FakeM5Global M5;
 void setUp() {
   M5.Led = FakeLed{};
   M5.Power = FakePower{};
+  resetLedServicePixelStateForTest();
 }
 
 void tearDown() {}
@@ -17,7 +18,10 @@ void tearDown() {}
 void test_led_service_init() {
   LedService service;
   TEST_ASSERT_TRUE(service.begin());
-  TEST_ASSERT_EQUAL_UINT8(0, M5.Led.brightness);
+  const LedServicePixelState& pixels = ledServicePixelStateForTest();
+  TEST_ASSERT_TRUE(pixels.begun);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.brightness);
+  TEST_ASSERT_EQUAL(1, pixels.showCalls);
 }
 
 void test_led_service_orange_when_charging_less_than_100() {
@@ -28,10 +32,16 @@ void test_led_service_orange_when_charging_less_than_100() {
   service.begin();
   service.update();
 
-  TEST_ASSERT_EQUAL_UINT8(60, M5.Led.brightness);
-  TEST_ASSERT_EQUAL_UINT8(255, M5.Led.r);
-  TEST_ASSERT_EQUAL_UINT8(128, M5.Led.g);
-  TEST_ASSERT_EQUAL_UINT8(0, M5.Led.b);
+  const LedServicePixelState& pixels = ledServicePixelStateForTest();
+  TEST_ASSERT_EQUAL_UINT8(60, pixels.brightness);
+  TEST_ASSERT_EQUAL_UINT8(255, pixels.r[0]);
+  TEST_ASSERT_EQUAL_UINT8(128, pixels.g[0]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.b[0]);
+  TEST_ASSERT_EQUAL_UINT8(255, pixels.r[1]);
+  TEST_ASSERT_EQUAL_UINT8(128, pixels.g[1]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.b[1]);
+  TEST_ASSERT_TRUE(pixels.showCalls >= 2);
+  TEST_ASSERT_FALSE(M5.Led.displayed);
 }
 
 void test_led_service_green_when_charging_at_100() {
@@ -42,10 +52,14 @@ void test_led_service_green_when_charging_at_100() {
   service.begin();
   service.update();
 
-  TEST_ASSERT_EQUAL_UINT8(60, M5.Led.brightness);
-  TEST_ASSERT_EQUAL_UINT8(0, M5.Led.r);
-  TEST_ASSERT_EQUAL_UINT8(255, M5.Led.g);
-  TEST_ASSERT_EQUAL_UINT8(0, M5.Led.b);
+  const LedServicePixelState& pixels = ledServicePixelStateForTest();
+  TEST_ASSERT_EQUAL_UINT8(60, pixels.brightness);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.r[0]);
+  TEST_ASSERT_EQUAL_UINT8(255, pixels.g[0]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.b[0]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.r[1]);
+  TEST_ASSERT_EQUAL_UINT8(255, pixels.g[1]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.b[1]);
 }
 
 void test_led_service_blinking_red_when_low_battery() {
@@ -56,10 +70,14 @@ void test_led_service_blinking_red_when_low_battery() {
   service.begin();
   service.update();
 
-  TEST_ASSERT_TRUE(M5.Led.brightness >= 10 && M5.Led.brightness <= 90);
-  TEST_ASSERT_EQUAL_UINT8(255, M5.Led.r);
-  TEST_ASSERT_EQUAL_UINT8(0, M5.Led.g);
-  TEST_ASSERT_EQUAL_UINT8(0, M5.Led.b);
+  const LedServicePixelState& pixels = ledServicePixelStateForTest();
+  TEST_ASSERT_TRUE(pixels.brightness >= 10 && pixels.brightness <= 90);
+  TEST_ASSERT_EQUAL_UINT8(255, pixels.r[0]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.g[0]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.b[0]);
+  TEST_ASSERT_EQUAL_UINT8(255, pixels.r[1]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.g[1]);
+  TEST_ASSERT_EQUAL_UINT8(0, pixels.b[1]);
 }
 
 int main(int argc, char **argv) {
