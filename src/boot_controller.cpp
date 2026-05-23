@@ -393,10 +393,44 @@ void BootController::enterHomeModeFast(const homedeck::SetupConfig& config) {
   }
 }
 
+uint32_t BootController::hashHomeViewModel(const homedeck::HomeViewModel& model) const {
+  uint32_t hash = 5381;
+  auto mix = [&hash](const std::string& s) {
+    for (unsigned char c : s) {
+      hash = ((hash << 5) + hash) + c;
+    }
+  };
+  mix(model.timeText);
+  mix(model.dateText);
+  mix(model.lunarText);
+  mix(model.solarTermText);
+  mix(model.holidayText);
+  mix(model.temperatureText);
+  mix(model.humidityText);
+  for (const auto& row : model.eventRows) {
+    mix(row.timeText);
+    mix(row.titleText);
+  }
+  hash = (hash << 1) | (model.wifiConnected ? 1 : 0);
+  hash = (hash << 1) | (model.timeSynced ? 1 : 0);
+  hash = (hash << 1) | (model.sensorAvailable ? 1 : 0);
+  hash = (hash << 1) | (model.calendarFresh ? 1 : 0);
+  return hash;
+}
+
 void BootController::refreshHomeScreen() {
   const TimeSnapshot snapshot = deps_.timeSnapshot ? deps_.timeSnapshot() : TimeSnapshot{};
   const homedeck::HomeViewModel model =
       buildHomeViewModel(config_, snapshot, wifiConnected_);
+
+  const uint32_t newHash = hashHomeViewModel(model);
+  if (newHash == lastModelHash_ && lastModelHash_ != 0) {
+    // 内容未变化，跳过刷新
+    lastRefreshAtMs_ = deps_.millis ? deps_.millis() : 0;
+    return;
+  }
+
+  lastModelHash_ = newHash;
 
   if (deps_.renderHomeScreen) {
     deps_.renderHomeScreen(model);
