@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ctime>
 #include <functional>
 #include <string>
 
@@ -17,6 +18,17 @@ struct BootCalendarCacheRecord {
 };
 
 using BootControllerSaveCallback = std::function<int(const homedeck::SetupConfig& config)>;
+
+struct RtcMemoryState {
+  uint32_t magic;                       // kRtcMemoryMagic，用于校验数据有效性
+  uint32_t wakeupCount;                 // 唤醒次数计数
+  time_t lastNtpSyncAt;                 // 上次 NTP 同步时间戳
+  char lastSensorTemp[16];              // 上次温度读数
+  char lastSensorHumidity[16];          // 上次湿度读数
+  bool lastSensorAvailable;             // 上次传感器是否可用
+  uint8_t consecutiveNetworkFailures;   // 连续网络失败次数
+  bool isConfigured;                    // 是否已完成初始配置
+};
 
 struct BootControllerDeps {
   std::function<void()> m5Begin;
@@ -67,9 +79,11 @@ class BootController {
 
   void begin();
   void update();
+  void enterDeepSleep();
 
  private:
   void enterAccessPointMode(const homedeck::SetupConfig& config);
+  void enterHomeModeFast(const homedeck::SetupConfig& config);
   void enterHomeMode(const homedeck::SetupConfig& config);
   void refreshHomeScreen();
   bool runBackgroundTasks(unsigned long nowMs, TimeSnapshot* snapshot);
@@ -90,6 +104,12 @@ class BootController {
   bool hasSavedConfig(const homedeck::SetupConfig& config) const;
   bool parseSnapshotDate(const TimeSnapshot& snapshot, int* year, int* month, int* day) const;
   bool shouldRefreshHome(const TimeSnapshot& snapshot) const;
+  void saveStateToRtcMemory();
+  void restoreStateFromRtcMemory();
+  uint32_t hashHomeViewModel(const homedeck::HomeViewModel& model) const;
+  bool shouldRunNetworkCycle(unsigned long nowMs) const;
+  void recordNetworkFailure();
+  void resetNetworkFailureCount();
 
   BootControllerDeps deps_;
   homedeck::SetupConfig config_{};
@@ -111,4 +131,6 @@ class BootController {
   bool holidayCalendarFresh_ = false;
   std::string activeCalendarDate_;
   unsigned long lastNetworkAttemptAtMs_ = 0;
+  uint32_t lastModelHash_ = 0;
+  unsigned long apModeStartAtMs_ = 0;
 };
