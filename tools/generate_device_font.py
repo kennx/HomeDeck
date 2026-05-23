@@ -8,7 +8,6 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_FONT = ROOT / "fonts" / "NotoSansSC-Regular.ttf"
 BODY_FONT = ROOT / "fonts" / "misans" / "NotoSansSC-SemiBold.ttf"
 METRIC_FONT = ROOT / "fonts" / "misans" / "MiSans-Bold.ttf"
 TIME_FONT = ROOT / "fonts" / "misans" / "MiSans-Heavy.ttf"
@@ -41,7 +40,7 @@ class FontResource:
         symbol_prefix: str,
         pixel_size: int,
         codepoints: list[int],
-        ttf_path: Path = SOURCE_FONT,
+        ttf_path: Path,
     ) -> None:
         self.name = name
         self.symbol_prefix = symbol_prefix
@@ -51,6 +50,7 @@ class FontResource:
         self.codepoints_path = BUILD_DIR / f"{name}_codepoints.txt"
         self.vlw_path = BUILD_DIR / f"{name}.vlw"
         self.vlw_data = b""
+        self.glyph_count = 0
 
 
 def run(command: list[str]) -> None:
@@ -155,6 +155,12 @@ def run_encoder(resource: FontResource) -> None:
     )
 
 
+def read_vlw_glyph_count(data: bytes) -> int:
+    if len(data) < 4:
+        raise ValueError("VLW data is too short to contain a glyph count")
+    return int.from_bytes(data[:4], byteorder="big", signed=False)
+
+
 def write_header(resources: list[FontResource]) -> None:
     HEADER_PATH.parent.mkdir(parents=True, exist_ok=True)
     declarations = []
@@ -162,7 +168,7 @@ def write_header(resources: list[FontResource]) -> None:
         declarations.append(
             f"""extern const std::uint8_t {resource.symbol_prefix}FontVlw[];
 inline constexpr std::size_t {resource.symbol_prefix}FontVlwSize = {len(resource.vlw_data)}U;
-inline constexpr std::uint32_t {resource.symbol_prefix}FontGlyphCount = {len(resource.codepoints)}U;
+inline constexpr std::uint32_t {resource.symbol_prefix}FontGlyphCount = {resource.glyph_count}U;
 inline constexpr std::uint32_t {resource.symbol_prefix}FontPixelSize = {resource.pixel_size}U;"""
         )
     declarations_text = "\n\n".join(declarations)
@@ -262,6 +268,7 @@ def main() -> None:
     for resource in resources:
         run_encoder(resource)
         resource.vlw_data = resource.vlw_path.read_bytes()
+        resource.glyph_count = read_vlw_glyph_count(resource.vlw_data)
 
     write_header(resources)
     write_source(resources)

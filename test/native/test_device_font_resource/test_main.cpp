@@ -20,7 +20,7 @@ void test_generated_device_font_metadata_is_plausible() {
                                   homedeck::generated::kDeviceFontGlyphCount);
   TEST_ASSERT_GREATER_THAN_UINT32(100000,
                                   homedeck::generated::kDeviceFontVlwSize);
-  TEST_ASSERT_EQUAL_UINT32(14, homedeck::generated::kDeviceFontPixelSize);
+  TEST_ASSERT_EQUAL_UINT32(18, homedeck::generated::kDeviceFontPixelSize);
   TEST_ASSERT_EQUAL_UINT32(19, homedeck::generated::kDeviceMetricFontGlyphCount);
   TEST_ASSERT_GREATER_THAN_UINT32(1000,
                                   homedeck::generated::kDeviceMetricFontVlwSize);
