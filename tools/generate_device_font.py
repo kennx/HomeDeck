@@ -144,7 +144,7 @@ def run_encoder(resource: FontResource) -> None:
     run(
         [
             str(ENCODER_PATH),
-            str(SOURCE_FONT),
+            str(resource.ttf_path),
             str(resource.codepoints_path),
             str(resource.pixel_size),
             str(resource.vlw_path),
