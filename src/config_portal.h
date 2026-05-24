@@ -1,5 +1,6 @@
 #pragma once
 
+#include <DNSServer.h>
 #include <WebServer.h>
 
 #include <functional>
@@ -28,9 +29,12 @@ class ConfigPortal {
   ManualDateTime readManualTimeFromRequest();
   void handleIndex();
   void handleSave();
+  void redirectToIndex();
+  void registerCaptivePortalRoutes();
   void sendPage(int status, const SetupConfig& values, const std::string& message);
 
   WebServer server_{80};
+  DNSServer dnsServer_;
   std::string apSsid_;
   SetupConfig defaults_{};
   std::vector<WifiNetwork> networks_;

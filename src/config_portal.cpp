@@ -9,6 +9,12 @@
 
 namespace homedeck {
 
+namespace {
+
+constexpr std::uint16_t kDnsPort = 53;
+
+}  // namespace
+
 void ConfigPortal::begin(
     const std::string& apSsid,
     const SetupConfig& defaults,
@@ -25,12 +31,16 @@ void ConfigPortal::begin(
   WiFi.softAP(apSsid_.c_str());
   delay(100);
 
+  dnsServer_.start(kDnsPort, "*", WiFi.softAPIP());
+
   server_.on("/", HTTP_GET, [this]() { handleIndex(); });
   server_.on("/save", HTTP_POST, [this]() { handleSave(); });
+  registerCaptivePortalRoutes();
   server_.begin();
 }
 
 void ConfigPortal::handleClient() {
+  dnsServer_.processNextRequest();
   server_.handleClient();
   if (restartScheduled_ && static_cast<long>(millis() - restartAtMs_) >= 0) {
     ESP.restart();
@@ -94,6 +104,22 @@ void ConfigPortal::handleSave() {
   restartScheduled_ = true;
   restartAtMs_ = millis() + 1000;
   sendPage(200, submitted, "设置已保存，设备将在 1 秒后重启。");
+}
+
+void ConfigPortal::redirectToIndex() {
+  const std::string location = std::string("http://") + WiFi.softAPIP().toString().c_str() + "/";
+  server_.sendHeader("Location", location.c_str(), true);
+  server_.send(302, "text/plain", "");
+}
+
+void ConfigPortal::registerCaptivePortalRoutes() {
+  server_.on("/generate_204", HTTP_GET, [this]() { redirectToIndex(); });
+  server_.on("/gen_204", HTTP_GET, [this]() { redirectToIndex(); });
+  server_.on("/hotspot-detect.html", HTTP_GET, [this]() { redirectToIndex(); });
+  server_.on("/library/test/success.html", HTTP_GET, [this]() { redirectToIndex(); });
+  server_.on("/connecttest.txt", HTTP_GET, [this]() { redirectToIndex(); });
+  server_.on("/ncsi.txt", HTTP_GET, [this]() { redirectToIndex(); });
+  server_.onNotFound([this]() { redirectToIndex(); });
 }
 
 void ConfigPortal::sendPage(int status, const SetupConfig& values, const std::string& message) {
