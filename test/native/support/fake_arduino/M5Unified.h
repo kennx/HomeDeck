@@ -172,6 +172,11 @@ struct FakeRect {
   std::uint32_t color = 0;
 };
 
+enum class textdatum_t {
+  top_left = 0,
+  middle_center = 1,
+};
+
 struct FakeDisplay {
   int rotation = 0;
   int cursorX = 0;
@@ -185,6 +190,7 @@ struct FakeDisplay {
   std::uint32_t textColor = TFT_BLACK;
   std::uint32_t textBackground = TFT_WHITE;
   std::uint32_t fillScreenColor = TFT_WHITE;
+  textdatum_t textDatum = textdatum_t::top_left;
   std::vector<FakePrintedText> prints;
   std::vector<FakeRect> rects;
 
@@ -345,6 +351,16 @@ struct FakeDisplay {
   }
 
   void waitDisplay() {
+  }
+
+  void setTextDatum(textdatum_t value) {
+    textDatum = value;
+  }
+
+  void drawString(const char* text, int x, int y) {
+    cursorX = x;
+    cursorY = y;
+    prints.push_back({x, y, textSize, fontKind, text != nullptr ? text : ""});
   }
 
   void setEpdMode(int) {
