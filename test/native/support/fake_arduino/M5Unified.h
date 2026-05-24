@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "generated/device_font_vlw.h"
+
 constexpr std::uint32_t TFT_BLACK = 0x00000000u;
 constexpr std::uint32_t TFT_WHITE = 0x00FFFFFFu;
 
@@ -22,6 +24,7 @@ enum class FakeFontKind {
   kDeviceDefault = 2,
   kDeviceMetric = 3,
   kDeviceTime = 4,
+  kConfigPortal = 5,
 };
 
 namespace m5 {
@@ -172,6 +175,18 @@ struct FakeRect {
   std::uint32_t color = 0;
 };
 
+struct FakePngDraw {
+  std::string path;
+  int x = 0;
+  int y = 0;
+  int datum = 0;
+};
+
+enum class datum_t {
+  top_left = 0,
+  middle_center = 1,
+};
+
 enum class textdatum_t {
   top_left = 0,
   middle_center = 1,
@@ -193,6 +208,7 @@ struct FakeDisplay {
   textdatum_t textDatum = textdatum_t::top_left;
   std::vector<FakePrintedText> prints;
   std::vector<FakeRect> rects;
+  std::vector<FakePngDraw> pngDraws;
 
   static int lineHeightFor(FakeFontKind kind) {
     if (kind == FakeFontKind::kDefault) {
@@ -312,6 +328,8 @@ struct FakeDisplay {
     }
     if (font == nullptr) {
       fontKind = FakeFontKind::kDefault;
+    } else if (font == homedeck::generated::kConfigPortalFontVlw) {
+      fontKind = FakeFontKind::kConfigPortal;
     } else if (font[0] == 28) {
       fontKind = FakeFontKind::kDeviceMetric;
     } else if (font[0] == 42) {
@@ -319,6 +337,27 @@ struct FakeDisplay {
     } else {
       fontKind = FakeFontKind::kDeviceDefault;
     }
+    return true;
+  }
+
+  void unloadFont() {
+    fontKind = FakeFontKind::kDefault;
+  }
+
+  template <typename TFs>
+  bool drawPngFile(
+      TFs&,
+      const char* path,
+      int x,
+      int y,
+      int,
+      int,
+      int,
+      int,
+      float,
+      float,
+      datum_t datum) {
+    pngDraws.push_back({path != nullptr ? path : "", x, y, static_cast<int>(datum)});
     return true;
   }
 
@@ -510,6 +549,22 @@ struct FakeCanvas {
   }
 
   void pushSprite(int, int) {
+  }
+
+  template <typename TFs>
+  bool drawPngFile(
+      TFs& fs,
+      const char* path,
+      int x,
+      int y,
+      int a,
+      int b,
+      int c,
+      int d,
+      float e,
+      float f,
+      datum_t datum) {
+    return parent != nullptr && parent->drawPngFile(fs, path, x, y, a, b, c, d, e, f, datum);
   }
 };
 
