@@ -94,11 +94,10 @@ void BootController::updateSetupShortcut(unsigned long now) {
   }
 
   if (now - setupButtonsPressedSinceMs_ >= kSetupShortcutHoldMs) {
-    setupShortcutConsumed_ = true;
-    if (deps_.setForceConfigOnNextBoot) {
-      deps_.setForceConfigOnNextBoot();
+    if (deps_.setForceConfigOnNextBoot && deps_.setForceConfigOnNextBoot()) {
+      setupShortcutConsumed_ = true;
     }
-    if (deps_.restart) {
+    if (setupShortcutConsumed_ && deps_.restart) {
       deps_.restart();
     }
   }

@@ -48,10 +48,21 @@ void test_setup_page_shows_error_message() {
   TEST_ASSERT_NOT_EQUAL(-1, html.find("请填写手动时间。"));
 }
 
+void test_setup_page_does_not_embed_ssid_in_inline_javascript() {
+  homedeck::SetupConfig config{};
+  std::vector<homedeck::WifiNetwork> networks = {{"Bob's WiFi", -30}};
+
+  const std::string html = homedeck::buildSetupPageHtml("HomeDeck-ABCD", config, networks, "");
+
+  TEST_ASSERT_EQUAL(std::string::npos, html.find("onclick="));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("data-ssid=\"Bob&#39;s WiFi\""));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_select_top_five_wifi_networks_by_rssi);
   RUN_TEST(test_setup_page_contains_wifi_list_timezone_and_disabled_auto_when_ssid_empty);
   RUN_TEST(test_setup_page_shows_error_message);
+  RUN_TEST(test_setup_page_does_not_embed_ssid_in_inline_javascript);
   return UNITY_END();
 }

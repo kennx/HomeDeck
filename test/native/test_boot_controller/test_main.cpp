@@ -12,6 +12,7 @@ struct Fixture {
   bool homeRendered = false;
   bool forceFlagWritten = false;
   bool forceFlagCleared = false;
+  bool forceFlagWriteSucceeds = true;
   bool restarted = false;
   bool buttonsPressed = false;
   unsigned long now = 0;
@@ -28,8 +29,11 @@ struct Fixture {
       return true;
     };
     deps.setForceConfigOnNextBoot = [this]() {
-      forceConfig = true;
       forceFlagWritten = true;
+      if (!forceFlagWriteSucceeds) {
+        return false;
+      }
+      forceConfig = true;
       return true;
     };
     deps.startConfigPortal = [this]() { portalStarted = true; };
@@ -135,6 +139,24 @@ void test_ab_held_after_startup_window_requests_config_reboot() {
   TEST_ASSERT_TRUE(f.restarted);
 }
 
+void test_ab_does_not_restart_when_force_config_flag_write_fails() {
+  Fixture f{};
+  f.configured = true;
+  f.forceFlagWriteSucceeds = false;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.buttonsPressed = true;
+  f.now = 100;
+  controller.update();
+  f.now = 5100;
+  controller.update();
+
+  TEST_ASSERT_TRUE(f.forceFlagWritten);
+  TEST_ASSERT_FALSE(f.forceConfig);
+  TEST_ASSERT_FALSE(f.restarted);
+}
+
 void test_config_mode_update_handles_portal_client() {
   Fixture f{};
   homedeck::BootController controller{f.deps()};
@@ -153,6 +175,7 @@ int main(int, char**) {
   RUN_TEST(test_ab_held_for_five_seconds_requests_config_reboot);
   RUN_TEST(test_ab_release_resets_hold_timer);
   RUN_TEST(test_ab_held_after_startup_window_requests_config_reboot);
+  RUN_TEST(test_ab_does_not_restart_when_force_config_flag_write_fails);
   RUN_TEST(test_config_mode_update_handles_portal_client);
   return UNITY_END();
 }

@@ -36,6 +36,9 @@ std::string htmlEscape(const std::string& value) {
       case '"':
         escaped += "&quot;";
         break;
+      case '\'':
+        escaped += "&#39;";
+        break;
       default:
         escaped += ch;
         break;
@@ -61,7 +64,7 @@ std::string buildSetupPageHtml(
   }
   html << "<div class=\"wifi\"><strong>Wi-Fi 列表</strong>";
   for (const auto& network : networks) {
-    html << "<button type=\"button\" onclick=\"pickSsid('" << htmlEscape(network.ssid) << "')\">";
+    html << "<button type=\"button\" data-ssid=\"" << htmlEscape(network.ssid) << "\">";
     html << htmlEscape(network.ssid) << " (" << network.rssi << " dBm)</button>";
   }
   html << "</div><form method=\"post\" action=\"/save\">";
@@ -89,7 +92,7 @@ std::string buildSetupPageHtml(
   html << "<label>NTP 服务器<input name=\"ntp_server\" value=\"" << htmlEscape(values.ntpServer) << "\"></label>";
   html << "<label>手动日期时间<input name=\"manual_datetime\" type=\"datetime-local\"></label>";
   html << "<button type=\"submit\">保存</button></form>";
-  html << "<script>const ssid=document.getElementById('wifi_ssid');const auto=document.getElementById('auto_rtc');function sync(){auto.disabled=ssid.value.trim()==='';if(auto.disabled)auto.checked=false;}function pickSsid(v){ssid.value=v;sync();}ssid.addEventListener('input',sync);sync();</script>";
+  html << "<script>const ssid=document.getElementById('wifi_ssid');const auto=document.getElementById('auto_rtc');function sync(){auto.disabled=ssid.value.trim()==='';if(auto.disabled)auto.checked=false;}function pickSsid(v){ssid.value=v;sync();}document.querySelectorAll('.wifi button[data-ssid]').forEach(b=>b.addEventListener('click',()=>pickSsid(b.dataset.ssid)));ssid.addEventListener('input',sync);sync();</script>";
   html << "</body></html>";
   return html.str();
 }

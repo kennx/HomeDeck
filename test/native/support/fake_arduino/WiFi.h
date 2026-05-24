@@ -6,6 +6,7 @@
 
 constexpr int WIFI_AP = 2;
 constexpr int WIFI_STA = 1;
+constexpr int WIFI_AP_STA = WIFI_AP | WIFI_STA;
 constexpr int WL_CONNECTED = 3;
 
 struct IPAddress {
@@ -31,6 +32,7 @@ struct FakeWiFiClass {
   std::vector<FakeWifiNetwork> scanResults;
 
   void mode(int value) { modeValue = value; }
+  int getMode() const { return modeValue; }
   bool softAP(const char* ssid, const char* = nullptr) {
     softApStarted = true;
     apSsid = ssid != nullptr ? ssid : "";

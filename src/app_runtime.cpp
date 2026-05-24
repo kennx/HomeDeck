@@ -16,6 +16,7 @@
 #include "home_renderer.h"
 #include "time_service.h"
 #include "timezone_catalog.h"
+#include "wifi_connection.h"
 
 namespace homedeck {
 namespace {
@@ -35,16 +36,6 @@ std::string makeApSsid() {
 
 std::string softApIpAddress() {
   return WiFi.softAPIP().toString().c_str();
-}
-
-bool connectWifi(const std::string& ssid, const std::string& password) {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid.c_str(), password.c_str());
-  const unsigned long startedAt = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < 10000) {
-    delay(250);
-  }
-  return WiFi.status() == WL_CONNECTED;
 }
 
 bool syncNtp(const std::string& posixTimezone, const std::string& ntpServer, time_t* syncedUnix) {
@@ -78,7 +69,9 @@ bool writeRtcUtc(time_t unixTime) {
 
 TimeServiceDeps makeTimeDeps() {
   TimeServiceDeps deps{};
-  deps.connectWifi = connectWifi;
+  deps.connectWifi = [](const std::string& ssid, const std::string& password) {
+    return connectWifiPreservingAccessPoint(ssid, password);
+  };
   deps.syncNtp = syncNtp;
   deps.writeRtcUtc = writeRtcUtc;
   deps.rtcAvailable = []() { return M5.Rtc.isEnabled(); };
