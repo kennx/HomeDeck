@@ -60,16 +60,19 @@ bool parseManualDateTime(std::string_view value, ManualDateTime* out) {
 
   ManualDateTime parsed{};
   parsed.present = true;
+  int pos = 0;
   const int matched = std::sscanf(
       std::string(value).c_str(),
-      "%d-%d-%dT%d:%d",
+      "%d-%d-%dT%d:%d%n",
       &parsed.year,
       &parsed.month,
       &parsed.day,
       &parsed.hour,
-      &parsed.minute);
+      &parsed.minute,
+      &pos);
 
-  if (matched != 5 || !isManualDateTimeValid(parsed)) {
+  if (matched != 5 || pos != static_cast<int>(value.size()) ||
+      !isManualDateTimeValid(parsed)) {
     return false;
   }
 
@@ -111,6 +114,11 @@ ConfigValidationResult validateSetupSubmission(
   }
 
   const bool hasWifi = !isBlank(config.wifiSsid);
+  if (!hasWifi && config.autoRtcCorrection) {
+    return makeError(ConfigValidationError::MissingManualDateTime,
+                     "离线配置不能开启自动纠正。");
+  }
+
   if (!hasWifi && !manualDateTime.present) {
     return makeError(ConfigValidationError::MissingManualDateTime, "离线配置必须填写手动时间。");
   }

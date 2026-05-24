@@ -77,6 +77,46 @@ void test_invalid_timezone_is_rejected() {
   TEST_ASSERT_EQUAL(homedeck::ConfigValidationError::InvalidTimezone, result.error);
 }
 
+void test_parse_datetime_rejects_trailing_garbage() {
+  homedeck::ManualDateTime manual{};
+  const bool ok = homedeck::parseManualDateTime("2026-05-24T09:08XYZ", &manual);
+  TEST_ASSERT_FALSE(ok);
+}
+
+void test_parse_datetime_rejects_non_leap_year() {
+  homedeck::ManualDateTime manual{};
+  const bool ok = homedeck::parseManualDateTime("2025-02-29T12:00", &manual);
+  TEST_ASSERT_FALSE(ok);
+}
+
+void test_parse_datetime_rejects_bad_string() {
+  homedeck::ManualDateTime manual{};
+  const bool ok = homedeck::parseManualDateTime("bad", &manual);
+  TEST_ASSERT_FALSE(ok);
+}
+
+void test_parse_datetime_accepts_empty_string() {
+  homedeck::ManualDateTime manual{};
+  const bool ok = homedeck::parseManualDateTime("", &manual);
+  TEST_ASSERT_TRUE(ok);
+  TEST_ASSERT_FALSE(manual.present);
+}
+
+void test_manual_datetime_validates_leap_year() {
+  TEST_ASSERT_TRUE(homedeck::isManualDateTimeValid({true, 2024, 2, 29, 0, 0, 0}));
+  TEST_ASSERT_FALSE(homedeck::isManualDateTimeValid({true, 2025, 2, 29, 0, 0, 0}));
+}
+
+void test_empty_wifi_with_auto_correction_is_rejected() {
+  homedeck::SetupConfig config{};
+  config.timezoneIana = "Asia/Shanghai";
+  config.autoRtcCorrection = true;
+  homedeck::ManualDateTime manual{};
+
+  const auto result = homedeck::validateSetupSubmission(config, manual);
+  TEST_ASSERT_EQUAL(homedeck::ConfigValidationError::MissingManualDateTime, result.error);
+}
+
 void test_timezone_catalog_maps_asia_shanghai() {
   const homedeck::TimezoneInfo* info = homedeck::findTimezoneByIana("Asia/Shanghai");
 
@@ -91,6 +131,12 @@ int main(int, char**) {
   RUN_TEST(test_wifi_auto_correction_requires_ntp_server);
   RUN_TEST(test_wifi_without_auto_correction_requires_manual_time);
   RUN_TEST(test_parse_datetime_local_value);
+  RUN_TEST(test_parse_datetime_rejects_trailing_garbage);
+  RUN_TEST(test_parse_datetime_rejects_non_leap_year);
+  RUN_TEST(test_parse_datetime_rejects_bad_string);
+  RUN_TEST(test_parse_datetime_accepts_empty_string);
+  RUN_TEST(test_manual_datetime_validates_leap_year);
+  RUN_TEST(test_empty_wifi_with_auto_correction_is_rejected);
   RUN_TEST(test_invalid_timezone_is_rejected);
   RUN_TEST(test_timezone_catalog_maps_asia_shanghai);
   return UNITY_END();

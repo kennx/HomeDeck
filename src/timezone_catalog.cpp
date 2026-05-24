@@ -1,5 +1,7 @@
 #include "timezone_catalog.h"
 
+#include <iterator>
+
 namespace homedeck {
 namespace {
 
@@ -25,7 +27,7 @@ const TimezoneInfo* defaultTimezone() {
 
 const TimezoneInfo* timezoneCatalog(std::size_t* count) {
   if (count != nullptr) {
-    *count = sizeof(kTimezones) / sizeof(kTimezones[0]);
+    *count = std::size(kTimezones);
   }
   return kTimezones;
 }
