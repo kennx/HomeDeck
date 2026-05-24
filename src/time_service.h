@@ -44,6 +44,7 @@ class TimeService {
   TimeCalibrationResult calibrateOnSave(
       const SetupConfig& config,
       const ManualDateTime& manualDateTime);
+  bool applyTimezone(const std::string& timezoneIana) const;
   void restoreSystemTimeFromRtc();
 
  private:

@@ -104,7 +104,13 @@ BootControllerDeps makeBootDeps() {
     gHomeRenderer.renderConfigPortal(apSsid, softApIpAddress());
   };
   deps.handleConfigPortalClient = []() { gConfigPortal.handleClient(); };
-  deps.restoreSystemTimeFromRtc = []() { gTimeService->restoreSystemTimeFromRtc(); };
+  deps.restoreSystemTimeFromRtc = []() {
+    const SetupConfig config = gConfigStore.loadSetupConfig();
+    if (!gTimeService->applyTimezone(config.timezoneIana)) {
+      gTimeService->applyTimezone(defaultTimezone()->iana);
+    }
+    gTimeService->restoreSystemTimeFromRtc();
+  };
   deps.renderHome = []() { gHomeRenderer.render(); };
   deps.updateButtons = []() { M5.update(); };
   deps.areSetupButtonsPressed = []() { return M5.BtnA.isPressed() && M5.BtnB.isPressed(); };
