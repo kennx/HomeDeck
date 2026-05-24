@@ -12,7 +12,7 @@ BODY_FONT = ROOT / "fonts" / "misans" / "MiSans-Semibold.ttf"
 METRIC_FONT = ROOT / "fonts" / "misans" / "MiSans-Bold.ttf"
 TIME_FONT = ROOT / "fonts" / "misans" / "MiSans-Heavy.ttf"
 CONFIG_FONT = ROOT / "fonts" / "misans" / "MiSans-Semibold.ttf"
-BODY_PIXEL_SIZE = 18
+BODY_PIXEL_SIZE = 20
 METRIC_PIXEL_SIZE = 28
 TIME_PIXEL_SIZE = 42
 CONFIG_PIXEL_SIZE = 20
@@ -250,6 +250,13 @@ def main() -> None:
 
     resources = [
         FontResource("device_font", "kDevice", BODY_PIXEL_SIZE, body_codepoints, BODY_FONT),
+        FontResource(
+            "device_large_date_font",
+            "kDeviceLargeDate",
+            156,
+            sorted(numeric_codepoints),
+            TIME_FONT,
+        ),
         FontResource(
             "device_metric_font",
             "kDeviceMetric",
