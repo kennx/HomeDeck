@@ -20,8 +20,46 @@ std::uint32_t readU32(const std::vector<std::uint8_t>& data, std::size_t offset)
          (static_cast<std::uint32_t>(data[offset + 3]) << 24);
 }
 
+void writeU16(std::vector<std::uint8_t>& data, std::size_t offset, std::uint16_t value) {
+  data[offset] = static_cast<std::uint8_t>(value & 0xFF);
+  data[offset + 1] = static_cast<std::uint8_t>((value >> 8) & 0xFF);
+}
+
+void writeU24(std::vector<std::uint8_t>& data, std::size_t offset, std::uint32_t value) {
+  data[offset] = static_cast<std::uint8_t>(value & 0xFF);
+  data[offset + 1] = static_cast<std::uint8_t>((value >> 8) & 0xFF);
+  data[offset + 2] = static_cast<std::uint8_t>((value >> 16) & 0xFF);
+}
+
+void writeU32(std::vector<std::uint8_t>& data, std::size_t offset, std::uint32_t value) {
+  data[offset] = static_cast<std::uint8_t>(value & 0xFF);
+  data[offset + 1] = static_cast<std::uint8_t>((value >> 8) & 0xFF);
+  data[offset + 2] = static_cast<std::uint8_t>((value >> 16) & 0xFF);
+  data[offset + 3] = static_cast<std::uint8_t>((value >> 24) & 0xFF);
+}
+
 void installPackage(const std::vector<std::uint8_t>& package) {
   fakeLittleFSSetFile(kAlmanacPath, package);
+}
+
+std::vector<std::uint8_t> buildTwoDayFixturePackage() {
+  homedeck::test::AlmanacFixtureDay second{
+      "腊月初二",
+      "",
+      "己亥年 丙子月 乙丑日 牛日",
+      "五行海中金",
+      "冲羊煞东",
+      "值神明堂",
+      "建除除日",
+      "胎神碓磨厕外东南",
+      {"出行"},
+      {"安葬", "开市"},
+  };
+  return homedeck::test::buildAlmanacFixturePackage(
+      1900,
+      1,
+      1,
+      {homedeck::test::singleDayFixture(), second});
 }
 
 }  // namespace
@@ -113,6 +151,17 @@ void test_corrupted_offset_table_returns_false() {
   TEST_ASSERT_FALSE(provider.lookup(1900, 1, 1, &out));
 }
 
+void test_record_body_mutation_without_crc_update_returns_false() {
+  auto package = homedeck::test::buildSingleDayFixturePackage();
+  const std::uint32_t recordsOffset = readU32(package, 32);
+  package[recordsOffset] ^= 0x01;
+  installPackage(package);
+  homedeck::AlmanacProvider provider;
+  homedeck::AlmanacDayData out{};
+
+  TEST_ASSERT_FALSE(provider.lookup(1900, 1, 1, &out));
+}
+
 void test_invalid_term_id_returns_false() {
   auto package = homedeck::test::buildSingleDayFixturePackage();
   const std::uint32_t recordsOffset = readU32(package, 32);
@@ -125,24 +174,61 @@ void test_invalid_term_id_returns_false() {
   TEST_ASSERT_FALSE(provider.lookup(1900, 1, 1, &out));
 }
 
+void test_invalid_string_index_returns_false() {
+  auto package = homedeck::test::buildSingleDayFixturePackage();
+  const std::uint32_t recordsOffset = readU32(package, 32);
+  const std::uint32_t stringCount = readU32(package, 40);
+  writeU16(package, recordsOffset, static_cast<std::uint16_t>(stringCount));
+  homedeck::test::rewritePayloadCrc(package);
+  installPackage(package);
+  homedeck::AlmanacProvider provider;
+  homedeck::AlmanacDayData out{};
+
+  TEST_ASSERT_FALSE(provider.lookup(1900, 1, 1, &out));
+}
+
+void test_final_record_offset_must_match_records_blob_length() {
+  auto package = buildTwoDayFixturePackage();
+  const std::uint32_t dayCount = readU32(package, 20);
+  const std::uint32_t recordOffsetsOffset = readU32(package, 28);
+  const std::uint32_t recordsOffset = readU32(package, 32);
+  const std::uint32_t stringTableOffset = readU32(package, 36);
+  const std::uint32_t recordsBlobLength = stringTableOffset - recordsOffset;
+  writeU24(package, recordOffsetsOffset + dayCount * 3, recordsBlobLength - 1);
+  homedeck::test::rewritePayloadCrc(package);
+  installPackage(package);
+  homedeck::AlmanacProvider provider;
+  homedeck::AlmanacDayData out{};
+
+  TEST_ASSERT_FALSE(provider.lookup(1900, 1, 1, &out));
+}
+
+void test_too_large_record_span_returns_false() {
+  auto package = buildTwoDayFixturePackage();
+  const std::uint32_t recordOffsetsOffset = readU32(package, 28);
+  const std::uint32_t recordsOffset = readU32(package, 32);
+  const std::uint32_t stringTableOffset = readU32(package, 36);
+  const std::uint32_t stringTableSize = readU32(package, 44);
+  const std::uint32_t oldRecordsBlobLength = stringTableOffset - recordsOffset;
+  constexpr std::uint32_t kDummyRecordBytes = 512;
+
+  package.insert(package.begin() + stringTableOffset, kDummyRecordBytes, 0);
+  const std::uint32_t newStringTableOffset = stringTableOffset + kDummyRecordBytes;
+  const std::uint32_t newRecordsBlobLength = oldRecordsBlobLength + kDummyRecordBytes;
+  writeU32(package, 36, newStringTableOffset);
+  writeU24(package, recordOffsetsOffset + 3, newRecordsBlobLength);
+  writeU24(package, recordOffsetsOffset + 6, newRecordsBlobLength);
+  TEST_ASSERT_EQUAL_UINT32(newStringTableOffset + stringTableSize, package.size());
+  homedeck::test::rewritePayloadCrc(package);
+  installPackage(package);
+  homedeck::AlmanacProvider provider;
+  homedeck::AlmanacDayData out{};
+
+  TEST_ASSERT_FALSE(provider.lookup(1900, 1, 1, &out));
+}
+
 void test_two_day_fixture_reads_second_record_from_offset_table() {
-  homedeck::test::AlmanacFixtureDay second{
-      "腊月初二",
-      "",
-      "己亥年 丙子月 乙丑日 牛日",
-      "五行海中金",
-      "冲羊煞东",
-      "值神明堂",
-      "建除除日",
-      "胎神碓磨厕外东南",
-      {"出行"},
-      {"安葬", "开市"},
-  };
-  installPackage(homedeck::test::buildAlmanacFixturePackage(
-      1900,
-      1,
-      1,
-      {homedeck::test::singleDayFixture(), second}));
+  installPackage(buildTwoDayFixturePackage());
   homedeck::AlmanacProvider provider;
   homedeck::AlmanacDayData out{};
 
@@ -163,7 +249,11 @@ int main(int, char**) {
   RUN_TEST(test_bad_format_version_returns_false);
   RUN_TEST(test_bad_payload_crc_returns_false);
   RUN_TEST(test_corrupted_offset_table_returns_false);
+  RUN_TEST(test_record_body_mutation_without_crc_update_returns_false);
   RUN_TEST(test_invalid_term_id_returns_false);
+  RUN_TEST(test_invalid_string_index_returns_false);
+  RUN_TEST(test_final_record_offset_must_match_records_blob_length);
+  RUN_TEST(test_too_large_record_span_returns_false);
   RUN_TEST(test_two_day_fixture_reads_second_record_from_offset_table);
   return UNITY_END();
 }

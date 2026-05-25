@@ -203,6 +203,19 @@ bool verifyPayloadCrc(File& file, const AlmanacHeader& header) {
   return (crc ^ 0xFFFFFFFFU) == header.payloadCrc32;
 }
 
+bool validateRecordOffsetTableEnd(File& file, const AlmanacHeader& header) {
+  std::vector<std::uint8_t> bytes;
+  const std::uint32_t finalOffsetPosition =
+      header.recordOffsetsOffset + header.dayCount * kRecordOffsetSize;
+  if (!readExact(file, finalOffsetPosition, bytes, kRecordOffsetSize)) {
+    return false;
+  }
+
+  const std::uint32_t finalRecordOffset = readU24(bytes, 0);
+  const std::uint32_t recordsBlobLength = header.stringTableOffset - header.recordsOffset;
+  return finalRecordOffset == recordsBlobLength;
+}
+
 bool dateOffset(const AlmanacHeader& header, int year, int month, int day, std::uint32_t& out) {
   if (!isValidDate(year, month, day)) {
     return false;
@@ -307,6 +320,11 @@ bool decodeRecord(
   if (recordLength < kMinimumRecordLength) {
     return false;
   }
+  const std::uint32_t maximumRecordLength =
+      kMinimumRecordLength + header.maxYiCount + header.maxJiCount;
+  if (recordLength > maximumRecordLength) {
+    return false;
+  }
 
   std::vector<std::uint8_t> record;
   if (!readExact(file, header.recordsOffset + recordStart, record, recordLength)) {
@@ -350,7 +368,8 @@ bool decodeRecord(
 
 bool lookupInFile(File& file, int year, int month, int day, AlmanacDayData& out) {
   AlmanacHeader header;
-  if (!readHeader(file, header) || !verifyPayloadCrc(file, header)) {
+  if (!readHeader(file, header) || !verifyPayloadCrc(file, header) ||
+      !validateRecordOffsetTableEnd(file, header)) {
     return false;
   }
 
