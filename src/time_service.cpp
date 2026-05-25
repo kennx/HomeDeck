@@ -47,6 +47,9 @@ TimeCalibrationResult TimeService::calibrateOnSave(
     time_t syncedUnix = 0;
     if (deps_.syncNtp && deps_.syncNtp(timezone->posix, config.ntpServer, &syncedUnix)) {
       if (deps_.writeRtcUtc && deps_.writeRtcUtc(syncedUnix)) {
+        if (!applyTimezone(config.timezoneIana)) {
+          return result(TimeCalibrationStatus::FailedTimezone, "时区不受支持。");
+        }
         return result(TimeCalibrationStatus::SuccessNtp, "");
       }
       return result(TimeCalibrationStatus::FailedRtcWrite, "RTC 写入失败。");
@@ -63,6 +66,16 @@ TimeCalibrationResult TimeService::calibrateOnSave(
   }
 
   return result(TimeCalibrationStatus::FailedNeedsManualTime, "请填写手动时间。");
+}
+
+bool TimeService::applyTimezone(const std::string& timezoneIana) const {
+  const TimezoneInfo* timezone = findTimezoneByIana(timezoneIana);
+  if (timezone == nullptr) {
+    return false;
+  }
+  setenv("TZ", timezone->posix, 1);
+  tzset();
+  return true;
 }
 
 void TimeService::restoreSystemTimeFromRtc() {
@@ -129,6 +142,9 @@ TimeCalibrationResult TimeService::writeManual(
     return result(TimeCalibrationStatus::FailedTimezone, "手动时间无法按时区转换。");
   }
   if (deps_.writeRtcUtc && deps_.writeRtcUtc(unixTime)) {
+    if (!applyTimezone(timezoneIana)) {
+      return result(TimeCalibrationStatus::FailedTimezone, "时区不受支持。");
+    }
     return result(successStatus, "");
   }
   return result(TimeCalibrationStatus::FailedRtcWrite, "RTC 写入失败。");

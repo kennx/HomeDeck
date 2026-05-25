@@ -1,4 +1,5 @@
 #include <ctime>
+#include <cstdlib>
 
 #include <unity.h>
 
@@ -57,6 +58,8 @@ homedeck::SetupConfig wifiAutoConfig() {
 }  // namespace
 
 void test_ntp_success_writes_ntp_time_to_rtc() {
+  setenv("TZ", "UTC0", 1);
+  tzset();
   Fixture f{};
   homedeck::TimeService service{f.deps()};
 
@@ -67,6 +70,7 @@ void test_ntp_success_writes_ntp_time_to_rtc() {
   TEST_ASSERT_TRUE(f.ntpCalled);
   TEST_ASSERT_TRUE(f.writeRtcCalled);
   TEST_ASSERT_EQUAL_INT64(f.ntpUnix, f.writtenUnix);
+  TEST_ASSERT_EQUAL_STRING("CST-8", getenv("TZ"));
 }
 
 void test_ntp_failure_uses_manual_fallback() {
@@ -106,6 +110,34 @@ void test_offline_config_writes_manual_time() {
   TEST_ASSERT_TRUE(f.writeRtcCalled);
 }
 
+void test_manual_save_applies_selected_timezone() {
+  setenv("TZ", "UTC0", 1);
+  tzset();
+  Fixture f{};
+  homedeck::TimeService service{f.deps()};
+  homedeck::SetupConfig config{};
+  config.timezoneIana = "Asia/Shanghai";
+  homedeck::ManualDateTime manual{true, 2026, 5, 24, 12, 0, 0};
+
+  const auto result = service.calibrateOnSave(config, manual);
+
+  TEST_ASSERT_EQUAL(homedeck::TimeCalibrationStatus::SuccessManual, result.status);
+  TEST_ASSERT_TRUE(f.writeRtcCalled);
+  TEST_ASSERT_EQUAL_INT64(1779595200, f.writtenUnix);
+  TEST_ASSERT_EQUAL_STRING("CST-8", getenv("TZ"));
+}
+
+void test_apply_timezone_updates_process_timezone() {
+  setenv("TZ", "UTC0", 1);
+  tzset();
+  Fixture f{};
+  homedeck::TimeService service{f.deps()};
+
+  TEST_ASSERT_TRUE(service.applyTimezone("Asia/Shanghai"));
+
+  TEST_ASSERT_EQUAL_STRING("CST-8", getenv("TZ"));
+}
+
 void test_restore_uses_rtc_when_available_and_not_low_voltage() {
   Fixture f{};
   homedeck::TimeService service{f.deps()};
@@ -131,6 +163,8 @@ int main(int, char**) {
   RUN_TEST(test_ntp_failure_uses_manual_fallback);
   RUN_TEST(test_ntp_failure_without_manual_time_returns_error);
   RUN_TEST(test_offline_config_writes_manual_time);
+  RUN_TEST(test_manual_save_applies_selected_timezone);
+  RUN_TEST(test_apply_timezone_updates_process_timezone);
   RUN_TEST(test_restore_uses_rtc_when_available_and_not_low_voltage);
   RUN_TEST(test_restore_skips_low_voltage_rtc);
   return UNITY_END();

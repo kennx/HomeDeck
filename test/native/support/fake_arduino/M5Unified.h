@@ -25,6 +25,7 @@ enum class FakeFontKind {
   kDeviceMetric = 3,
   kDeviceTime = 4,
   kConfigPortal = 5,
+  kDeviceLargeDate = 6,
 };
 
 namespace m5 {
@@ -165,6 +166,8 @@ struct FakePrintedText {
   int size = 1;
   FakeFontKind fontKind = FakeFontKind::kDefault;
   std::string text;
+  std::uint32_t color = TFT_BLACK;
+  std::uint32_t background = TFT_WHITE;
 };
 
 struct FakeRect {
@@ -198,7 +201,11 @@ enum class datum_t {
 
 enum class textdatum_t {
   top_left = 0,
-  middle_center = 1,
+  top_center = 1,
+  top_right = 2,
+  middle_left = 3,
+  middle_center = 4,
+  middle_right = 5,
 };
 
 struct FakeDisplay {
@@ -232,6 +239,9 @@ struct FakeDisplay {
     }
     if (kind == FakeFontKind::kDeviceTime) {
       return 42;
+    }
+    if (kind == FakeFontKind::kDeviceLargeDate) {
+      return 78;
     }
     return 14;
   }
@@ -281,7 +291,7 @@ struct FakeDisplay {
   }
 
   void print(const char* text) {
-    prints.push_back({cursorX, cursorY, textSize, fontKind, text != nullptr ? text : ""});
+    prints.push_back({cursorX, cursorY, textSize, fontKind, text != nullptr ? text : "", textColor, textBackground});
     cursorX += textWidth(text);
   }
 
@@ -316,7 +326,7 @@ struct FakeDisplay {
     }
 
     if (kind == FakeFontKind::kDeviceDefault) {
-      return leadByte < 0x80 || (leadByte & 0xE0) == 0xC0 ? 7 : 14;
+      return leadByte < 0x80 || (leadByte & 0xE0) == 0xC0 ? 10 : 20;
     }
 
     if (kind == FakeFontKind::kDeviceMetric) {
@@ -325,6 +335,10 @@ struct FakeDisplay {
 
     if (kind == FakeFontKind::kDeviceTime) {
       return leadByte < 0x80 || (leadByte & 0xE0) == 0xC0 ? 21 : 42;
+    }
+
+    if (kind == FakeFontKind::kDeviceLargeDate) {
+      return 39;
     }
 
     if (leadByte < 0x80 || (leadByte & 0xE0) == 0xC0) {
@@ -343,10 +357,14 @@ struct FakeDisplay {
       fontKind = FakeFontKind::kDefault;
     } else if (font == homedeck::generated::kConfigPortalFontVlw) {
       fontKind = FakeFontKind::kConfigPortal;
-    } else if (font[0] == 28) {
+    } else if (font == homedeck::generated::kDeviceLargeDateFontVlw) {
+      fontKind = FakeFontKind::kDeviceLargeDate;
+    } else if (font == homedeck::generated::kDeviceMetricFontVlw) {
       fontKind = FakeFontKind::kDeviceMetric;
-    } else if (font[0] == 42) {
+    } else if (font == homedeck::generated::kDeviceTimeFontVlw) {
       fontKind = FakeFontKind::kDeviceTime;
+    } else if (font == homedeck::generated::kDeviceFontVlw) {
+      fontKind = FakeFontKind::kDeviceDefault;
     } else {
       fontKind = FakeFontKind::kDeviceDefault;
     }
@@ -398,6 +416,10 @@ struct FakeDisplay {
     rects.push_back({x, y, w, h, color});
   }
 
+  void drawFastHLine(int32_t x, int32_t y, int32_t w, std::uint32_t color) {
+    rects.push_back({x, y, w, 1, color});
+  }
+
   void startWrite() {
   }
 
@@ -415,7 +437,7 @@ struct FakeDisplay {
   void drawString(const char* text, int x, int y) {
     cursorX = x;
     cursorY = y;
-    prints.push_back({x, y, textSize, fontKind, text != nullptr ? text : ""});
+    prints.push_back({x, y, textSize, fontKind, text != nullptr ? text : "", textColor, textBackground});
   }
 
   void setEpdMode(int) {
@@ -435,6 +457,8 @@ struct FakeCanvas {
   FakeFontKind fontKind = FakeFontKind::kDefault;
   int lineStartX = 0;
   int colorDepth = 16;
+  std::uint32_t textColor = TFT_BLACK;
+  std::uint32_t textBackground = TFT_WHITE;
   textdatum_t textDatum = textdatum_t::top_left;
   std::vector<FakePrintedText> prints;
   std::vector<FakeRect> rects;
@@ -472,6 +496,8 @@ struct FakeCanvas {
   }
 
   void setTextColor(std::uint32_t fg, std::uint32_t bg) {
+    textColor = fg;
+    textBackground = bg;
     if (parent != nullptr) {
       parent->textColor = fg;
       parent->textBackground = bg;
@@ -527,7 +553,7 @@ struct FakeCanvas {
   }
 
   void print(const char* text) {
-    prints.push_back({cursorX, cursorY, textSize, fontKind, text != nullptr ? text : ""});
+    prints.push_back({cursorX, cursorY, textSize, fontKind, text != nullptr ? text : "", textColor, textBackground});
     cursorX += textWidth(text);
   }
 
@@ -572,6 +598,10 @@ struct FakeCanvas {
     rects.push_back({x, y, w, h, color});
   }
 
+  void drawFastHLine(int32_t x, int32_t y, int32_t w, std::uint32_t color) {
+    rects.push_back({x, y, w, 1, color});
+  }
+
   void setTextDatum(textdatum_t value) {
     textDatum = value;
     if (parent != nullptr) {
@@ -582,7 +612,7 @@ struct FakeCanvas {
   void drawString(const char* text, int x, int y) {
     cursorX = x;
     cursorY = y;
-    prints.push_back({x, y, textSize, fontKind, text != nullptr ? text : ""});
+    prints.push_back({x, y, textSize, fontKind, text != nullptr ? text : "", textColor, textBackground});
   }
 
   void pushSprite(int x, int y) {
