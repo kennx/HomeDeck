@@ -24,9 +24,23 @@ inline void fakeArduinoSetMillis(unsigned long value) {
   gFakeMillis = static_cast<std::uint32_t>(value);
 }
 
+constexpr std::uint8_t INPUT_PULLUP = 0x05;
+inline int gFakeLastPinModePin = -1;
+inline std::uint8_t gFakeLastPinModeMode = 0;
+inline int gFakePinModeCalls = 0;
+
+inline void pinMode(std::uint8_t pin, std::uint8_t mode) {
+  ++gFakePinModeCalls;
+  gFakeLastPinModePin = pin;
+  gFakeLastPinModeMode = mode;
+}
+
 inline void fakeArduinoResetClock() {
   gFakeMillis = 0;
   gFakeDelayCallback = nullptr;
+  gFakeLastPinModePin = -1;
+  gFakeLastPinModeMode = 0;
+  gFakePinModeCalls = 0;
 }
 
 inline void delay(unsigned long ms) {

@@ -4,6 +4,7 @@
 #include <ESP.h>
 #include <M5Unified.h>
 #include <WiFi.h>
+#include <esp_sleep.h>
 #include <time.h>
 
 #include <cstdio>
@@ -14,6 +15,7 @@
 #include "config_portal.h"
 #include "config_store.h"
 #include "home_renderer.h"
+#include "sht40_reader.h"
 #include "time_service.h"
 #include "timezone_catalog.h"
 #include "wifi_connection.h"
@@ -93,6 +95,27 @@ ConfigValidationResult saveSubmittedConfig(
   return ConfigValidationResult{};
 }
 
+void renderHomeWithEnvironment() {
+  HomeCalendarData data = makeCurrentHomeCalendarData();
+  const EnvironmentReading reading = readSht40Environment();
+  if (reading.ok) {
+    data.temperatureAvailable = true;
+    data.temperatureCelsius = reading.temperatureCelsius;
+    data.humidityAvailable = true;
+    data.humidityPercent = reading.humidityPercent;
+  }
+  gHomeRenderer.render(data);
+}
+
+void enterHomeDeepSleep(const HomeSleepRequest& request) {
+  pinMode(static_cast<std::uint8_t>(request.wakeupGpio), INPUT_PULLUP);
+  esp_sleep_enable_timer_wakeup(request.timerWakeupUs);
+  esp_sleep_enable_ext0_wakeup(static_cast<gpio_num_t>(request.wakeupGpio), request.wakeOnLow ? 0 : 1);
+  M5.Display.sleep();
+  M5.Display.waitDisplay();
+  esp_deep_sleep_start();
+}
+
 BootControllerDeps makeBootDeps() {
   BootControllerDeps deps{};
   deps.loadFlags = []() { return gConfigStore.loadBootFlags(); };
@@ -111,11 +134,13 @@ BootControllerDeps makeBootDeps() {
     }
     gTimeService->restoreSystemTimeFromRtc();
   };
-  deps.renderHome = []() { gHomeRenderer.render(); };
+  deps.renderHome = renderHomeWithEnvironment;
   deps.updateButtons = []() { M5.update(); };
   deps.areSetupButtonsPressed = []() { return M5.BtnA.isPressed() && M5.BtnB.isPressed(); };
   deps.millis = []() { return millis(); };
   deps.restart = []() { ESP.restart(); };
+  deps.currentTime = []() { return time(nullptr); };
+  deps.enterDeepSleep = enterHomeDeepSleep;
   return deps;
 }
 

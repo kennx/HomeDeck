@@ -244,6 +244,11 @@ struct FakeDisplay {
   int directRectCount = 0;
   int directPngDrawCount = 0;
   int waitDisplayCount = 0;
+  int sleepCount = 0;
+
+  void sleep() {
+    ++sleepCount;
+  }
 
   static int lineHeightFor(FakeFontKind kind) {
     if (kind == FakeFontKind::kDefault) {
@@ -703,6 +708,7 @@ struct FakeM5Global {
   FakeDisplay Display;
   FakeButton BtnA;
   FakeButton BtnB;
+  FakeButton BtnC;
   FakeLed Led;
   FakePower Power;
   int updateCount = 0;
