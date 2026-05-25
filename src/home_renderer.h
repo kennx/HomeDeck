@@ -21,9 +21,14 @@ struct HomeCalendarData {
   std::string taishen;
   std::string yi;
   std::string ji;
+  bool temperatureAvailable = false;
+  float temperatureCelsius = 0.0f;
+  bool humidityAvailable = false;
+  float humidityPercent = 0.0f;
 };
 
 HomeCalendarData makeHomeCalendarData(const std::tm& localTime);
+HomeCalendarData makeCurrentHomeCalendarData();
 
 class HomeRenderer {
  public:

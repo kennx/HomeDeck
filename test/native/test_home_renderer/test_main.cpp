@@ -23,6 +23,8 @@ constexpr int kQrLeft = 72;
 constexpr int kQrTop = 258;
 constexpr int kQrSize = 256;
 constexpr std::uint32_t kHolidayColor = 0xF800;
+constexpr int kEnvironmentTextTopY = 574;
+constexpr std::uint32_t kWeekdayColor = 0x0449;
 
 homedeck::HomeCalendarData figmaCalendarData() {
   return {
@@ -52,6 +54,16 @@ void assertRectsInsideQrBounds() {
     TEST_ASSERT_LESS_OR_EQUAL(kQrTop + kQrSize, rect.y + rect.h);
     TEST_ASSERT_EQUAL(TFT_BLACK, rect.color);
   }
+}
+
+int countPrintedGlyphsInRow(int y) {
+  int count = 0;
+  for (const auto& print : M5.Display.prints) {
+    if (print.y == y && print.text.size() > 0 && print.text != "宜" && print.text != "忌") {
+      ++count;
+    }
+  }
+  return count;
 }
 
 }  // namespace
@@ -200,10 +212,10 @@ void test_home_renderer_draws_lunar_calendar_portrait() {
   int internalLineCount = 0;
 
   for (const auto& rect : M5.Display.rects) {
-    if (rect.x == 12 && rect.y == 293 && rect.w == 376 && rect.h == 242) {
+    if (rect.x == 12 && rect.y == 293 && rect.w == 376 && rect.h == 215) {
       foundTableBorder = true;
     } else if (rect.x == 12 && rect.w == 376 && rect.h == 1) {
-      if (rect.y == 340 || rect.y == 387 || rect.y == 488) {
+      if (rect.y == 340 || rect.y == 387 || rect.y == 461) {
         internalLineCount++;
       }
     }
@@ -294,6 +306,87 @@ void test_home_renderer_shrinks_yi_ji_rows_when_content_is_single_line() {
   TEST_ASSERT_TRUE(foundJiContent);
 }
 
+void test_home_renderer_draws_environment_readings_at_bottom_edges() {
+  auto data = figmaCalendarData();
+  data.temperatureAvailable = true;
+  data.temperatureCelsius = 30.04f;
+  data.humidityAvailable = true;
+  data.humidityPercent = 49.96f;
+  homedeck::HomeRenderer renderer;
+
+  renderer.render(data);
+
+  bool foundTemperature = false;
+  bool foundHumidity = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.text == "30.0°C") {
+      TEST_ASSERT_EQUAL(12, print.x);
+      TEST_ASSERT_EQUAL(kEnvironmentTextTopY, print.y);
+      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
+      foundTemperature = true;
+    }
+    if (print.text == "50.0%") {
+      TEST_ASSERT_EQUAL(388, print.x);
+      TEST_ASSERT_EQUAL(kEnvironmentTextTopY, print.y);
+      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
+      foundHumidity = true;
+    }
+  }
+
+  TEST_ASSERT_TRUE(foundTemperature);
+  TEST_ASSERT_TRUE(foundHumidity);
+}
+
+void test_home_renderer_draws_environment_placeholders_when_unavailable() {
+  auto data = figmaCalendarData();
+  homedeck::HomeRenderer renderer;
+
+  renderer.render(data);
+
+  bool foundTemperature = false;
+  bool foundHumidity = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.text == "--.-°C") {
+      TEST_ASSERT_EQUAL(12, print.x);
+      TEST_ASSERT_EQUAL(kEnvironmentTextTopY, print.y);
+      foundTemperature = true;
+    }
+    if (print.text == "--.-%") {
+      TEST_ASSERT_EQUAL(388, print.x);
+      TEST_ASSERT_EQUAL(kEnvironmentTextTopY, print.y);
+      foundHumidity = true;
+    }
+  }
+
+  TEST_ASSERT_TRUE(foundTemperature);
+  TEST_ASSERT_TRUE(foundHumidity);
+}
+
+void test_home_renderer_limits_yi_and_ji_to_two_lines() {
+  auto data = figmaCalendarData();
+  data.yi = "甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥";
+  data.ji = data.yi;
+  homedeck::HomeRenderer renderer;
+
+  renderer.render(data);
+
+  TEST_ASSERT_GREATER_THAN(0, countPrintedGlyphsInRow(397));
+  TEST_ASSERT_GREATER_THAN(0, countPrintedGlyphsInRow(424));
+  TEST_ASSERT_EQUAL(0, countPrintedGlyphsInRow(451));
+
+  bool foundJiLabelAtCappedRow = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.text == "忌" && print.y == 471) {
+      foundJiLabelAtCappedRow = true;
+    }
+    TEST_ASSERT_NOT_EQUAL(525, print.y);
+    TEST_ASSERT_NOT_EQUAL(552, print.y);
+  }
+  TEST_ASSERT_TRUE(foundJiLabelAtCappedRow);
+}
+
 void test_home_renderer_draws_config_portal_layout() {
   homedeck::HomeRenderer renderer;
 
@@ -342,6 +435,9 @@ int main(int, char**) {
   RUN_TEST(test_home_renderer_wraps_unspaced_chinese_text_by_character);
   RUN_TEST(test_home_renderer_uses_red_for_all_holiday_text_and_table_lines);
   RUN_TEST(test_home_renderer_shrinks_yi_ji_rows_when_content_is_single_line);
+  RUN_TEST(test_home_renderer_draws_environment_readings_at_bottom_edges);
+  RUN_TEST(test_home_renderer_draws_environment_placeholders_when_unavailable);
+  RUN_TEST(test_home_renderer_limits_yi_and_ji_to_two_lines);
   RUN_TEST(test_home_renderer_draws_config_portal_layout);
   return UNITY_END();
 }

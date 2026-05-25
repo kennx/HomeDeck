@@ -47,8 +47,12 @@ constexpr int kTableRow1TextY = 303;
 constexpr int kTableRow2TextY = 350;
 constexpr int kTableYiTextY = 397;
 constexpr int kTableLineHeight = 27;
+constexpr int kEnvironmentTextTopY = 574;
+constexpr int kEnvironmentTextLeftX = 12;
+constexpr int kEnvironmentTextRightX = 388;
 constexpr int kTableRowPaddingY = 10;
 constexpr int kTableFixedRowHeight = 47;
+constexpr int kMaxActionLines = 2;
 
 // 供配置界面（Config Portal）渲染 Logo 使用的方法保留
 int centerX() {
@@ -129,6 +133,34 @@ void drawQrCode(M5Canvas& canvas, const std::string& text, int left, int top, in
 constexpr std::uint16_t kGreenColor = 0x0449;
 constexpr std::uint16_t kRedColor = 0xF800;
 
+std::string formatTemperatureText(const HomeCalendarData& data) {
+  if (!data.temperatureAvailable) {
+    return "--.-°C";
+  }
+  char buffer[16] = {};
+  std::snprintf(buffer, sizeof(buffer), "%.1f°C", data.temperatureCelsius);
+  return buffer;
+}
+
+std::string formatHumidityText(const HomeCalendarData& data) {
+  if (!data.humidityAvailable) {
+    return "--.-%";
+  }
+  char buffer[16] = {};
+  std::snprintf(buffer, sizeof(buffer), "%.1f%%", data.humidityPercent);
+  return buffer;
+}
+
+void drawEnvironmentReadings(M5Canvas& canvas, const HomeCalendarData& data) {
+  canvas.setTextDatum(textdatum_t::top_left);
+  const std::string temperature = formatTemperatureText(data);
+  canvas.drawString(temperature.c_str(), kEnvironmentTextLeftX, kEnvironmentTextTopY);
+
+  canvas.setTextDatum(textdatum_t::top_right);
+  const std::string humidity = formatHumidityText(data);
+  canvas.drawString(humidity.c_str(), kEnvironmentTextRightX, kEnvironmentTextTopY);
+}
+
 std::size_t utf8CodePointLength(unsigned char leadByte) {
   if ((leadByte & 0x80) == 0) {
     return 1;
@@ -145,9 +177,27 @@ std::size_t utf8CodePointLength(unsigned char leadByte) {
   return 1;
 }
 
-void drawWrappedText(M5Canvas& canvas, const std::string& text, int startX, int startY, int maxWidth, int lineHeight) {
+void drawWrappedText(
+    M5Canvas& canvas,
+    const std::string& text,
+    int startX,
+    int startY,
+    int maxWidth,
+    int lineHeight,
+    int maxLines) {
   int currentX = startX;
   int currentY = startY;
+  int currentLine = 1;
+
+  auto moveToNextLine = [&]() {
+    if (currentLine >= maxLines) {
+      return false;
+    }
+    ++currentLine;
+    currentX = startX;
+    currentY += lineHeight;
+    return true;
+  };
 
   for (std::size_t index = 0; index < text.size();) {
     std::size_t length = utf8CodePointLength(static_cast<unsigned char>(text[index]));
@@ -159,8 +209,9 @@ void drawWrappedText(M5Canvas& canvas, const std::string& text, int startX, int 
     index += length;
 
     if (glyph == "\n") {
-      currentX = startX;
-      currentY += lineHeight;
+      if (!moveToNextLine()) {
+        return;
+      }
       continue;
     }
     if (glyph == " " && currentX == startX) {
@@ -169,8 +220,9 @@ void drawWrappedText(M5Canvas& canvas, const std::string& text, int startX, int 
 
     const int glyphWidth = canvas.textWidth(glyph.c_str());
     if (currentX > startX && currentX + glyphWidth > startX + maxWidth) {
-      currentX = startX;
-      currentY += lineHeight;
+      if (!moveToNextLine()) {
+        return;
+      }
       if (glyph == " ") {
         continue;
       }
@@ -219,8 +271,11 @@ int wrappedLineCount(M5Canvas& canvas, const std::string& text, int maxWidth) {
 }
 
 int dynamicActionRowHeight(M5Canvas& canvas, const std::string& text) {
-  const int contentHeight = wrappedLineCount(canvas, text, kTableContentWidth) * kTableLineHeight
-      + kTableRowPaddingY * 2;
+  int lineCount = wrappedLineCount(canvas, text, kTableContentWidth);
+  if (lineCount > kMaxActionLines) {
+    lineCount = kMaxActionLines;
+  }
+  const int contentHeight = lineCount * kTableLineHeight + kTableRowPaddingY * 2;
   return contentHeight > kTableFixedRowHeight ? contentHeight : kTableFixedRowHeight;
 }
 
@@ -328,10 +383,14 @@ HomeCalendarData makeHomeCalendarData(const std::tm& localTime) {
   return data;
 }
 
-void HomeRenderer::render() {
+HomeCalendarData makeCurrentHomeCalendarData() {
   const std::time_t now = std::time(nullptr);
   const std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
-  render(makeHomeCalendarData(local != nullptr ? *local : fallbackLocalTime()));
+  return makeHomeCalendarData(local != nullptr ? *local : fallbackLocalTime());
+}
+
+void HomeRenderer::render() {
+  render(makeCurrentHomeCalendarData());
 }
 
 void HomeRenderer::render(const HomeCalendarData& data) {
@@ -403,10 +462,12 @@ void HomeRenderer::render(const HomeCalendarData& data) {
 
     canvas.setTextDatum(textdatum_t::top_left);
     canvas.drawString("宜", kTableTextLeftX, kTableYiTextY);
-    drawWrappedText(canvas, data.yi, kTableContentLeftX, kTableYiTextY, kTableContentWidth, kTableLineHeight);
+    drawWrappedText(canvas, data.yi, kTableContentLeftX, kTableYiTextY, kTableContentWidth, kTableLineHeight, kMaxActionLines);
 
     canvas.drawString("忌", kTableTextLeftX, jiTextY);
-    drawWrappedText(canvas, data.ji, kTableContentLeftX, jiTextY, kTableContentWidth, kTableLineHeight);
+    drawWrappedText(canvas, data.ji, kTableContentLeftX, jiTextY, kTableContentWidth, kTableLineHeight, kMaxActionLines);
+
+    drawEnvironmentReadings(canvas, data);
 
     canvas.unloadFont();
   }
