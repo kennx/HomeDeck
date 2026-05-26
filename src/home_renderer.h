@@ -42,6 +42,8 @@ struct CalendarData {
 CalendarData makeCalendarData(const std::tm& localTime);
 CalendarData makeCurrentCalendarData();
 
+void applySht40ToCalendar(CalendarData& data);
+
 HomeCalendarData makeHomeCalendarData(const std::tm& localTime);
 HomeCalendarData makeCurrentHomeCalendarData();
 

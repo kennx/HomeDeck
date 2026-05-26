@@ -223,13 +223,7 @@ void renderCalendarWithOffset(int monthOffset) {
   data.month = targetMonth;
   data.day = (monthOffset == 0) ? local->tm_mday : 0;
 
-  const EnvironmentReading reading = readSht40Environment();
-  if (reading.ok) {
-    data.temperatureAvailable = true;
-    data.temperatureCelsius = reading.temperatureCelsius;
-    data.humidityAvailable = true;
-    data.humidityPercent = reading.humidityPercent;
-  }
+  applySht40ToCalendar(data);
 
   gHomeRenderer.renderCalendar(data);
 }

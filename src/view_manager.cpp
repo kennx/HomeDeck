@@ -24,17 +24,8 @@ SystemView ViewManager::currentView() const {
   return currentView_;
 }
 
-bool ViewManager::viewSwitched() const {
-  return viewSwitched_;
-}
-
-void ViewManager::resetViewSwitched() {
-  viewSwitched_ = false;
-}
-
 void ViewManager::switchTo(SystemView view) {
   currentView_ = view;
-  viewSwitched_ = true;
   switch (view) {
     case SystemView::Almanac:
       if (deps_.renderAlmanac) {

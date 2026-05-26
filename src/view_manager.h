@@ -20,15 +20,12 @@ class ViewManager {
   void begin();
   void switchToNextView();
   SystemView currentView() const;
-  bool viewSwitched() const;
-  void resetViewSwitched();
 
  private:
   void switchTo(SystemView view);
 
   ViewManagerDeps deps_;
   SystemView currentView_ = SystemView::Almanac;
-  bool viewSwitched_ = false;
 };
 
 }  // namespace homedeck

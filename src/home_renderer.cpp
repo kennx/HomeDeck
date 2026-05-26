@@ -405,6 +405,16 @@ CalendarData makeCalendarData(const std::tm& localTime) {
   return data;
 }
 
+void applySht40ToCalendar(CalendarData& data) {
+  const EnvironmentReading reading = readSht40Environment();
+  if (reading.ok) {
+    data.temperatureAvailable = true;
+    data.temperatureCelsius = reading.temperatureCelsius;
+    data.humidityAvailable = true;
+    data.humidityPercent = reading.humidityPercent;
+  }
+}
+
 CalendarData makeCurrentCalendarData() {
   const std::time_t now = std::time(nullptr);
   const std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
@@ -413,13 +423,7 @@ CalendarData makeCurrentCalendarData() {
     return makeCalendarData(fallback);
   }
   CalendarData data = makeCalendarData(*local);
-  const EnvironmentReading reading = readSht40Environment();
-  if (reading.ok) {
-    data.temperatureAvailable = true;
-    data.temperatureCelsius = reading.temperatureCelsius;
-    data.humidityAvailable = true;
-    data.humidityPercent = reading.humidityPercent;
-  }
+  applySht40ToCalendar(data);
   return data;
 }
 

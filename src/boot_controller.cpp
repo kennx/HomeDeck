@@ -13,6 +13,8 @@ constexpr std::time_t kTrustedUnixTimeThreshold = 1704067200;
 constexpr std::uint64_t kMicrosPerSecond = 1000000ULL;
 constexpr std::uint64_t kFallbackSleepSeconds = 3600ULL;
 constexpr int kButtonCWakeupGpio = 1;
+constexpr int kCalendarMonthOffsetMin = -120;
+constexpr int kCalendarMonthOffsetMax = 120;
 
 }  // namespace
 
@@ -65,11 +67,9 @@ void BootController::update() {
   if (btnCClicks == 1) {
     if (viewManager_) {
       viewManager_->switchToNextView();
-      if (viewManager_->viewSwitched()) {
-        lastActivityMs_ = now;
-      }
+      lastActivityMs_ = now;
     }
-  } else if (btnCClicks == 2) {
+  } else if (btnCClicks >= 2) {
     if (viewManager_ && viewManager_->currentView() == SystemView::Calendar) {
       calendarMonthOffset_ = 0;
       if (deps_.renderCalendarWithOffset) {
@@ -83,11 +83,15 @@ void BootController::update() {
   if (viewManager_ && viewManager_->currentView() == SystemView::Calendar) {
     bool calendarUpdated = false;
     if (deps_.wasPrevMonthClicked && deps_.wasPrevMonthClicked()) {
-      calendarMonthOffset_--;
-      calendarUpdated = true;
+      if (calendarMonthOffset_ > kCalendarMonthOffsetMin) {
+        calendarMonthOffset_--;
+        calendarUpdated = true;
+      }
     } else if (deps_.wasNextMonthClicked && deps_.wasNextMonthClicked()) {
-      calendarMonthOffset_++;
-      calendarUpdated = true;
+      if (calendarMonthOffset_ < kCalendarMonthOffsetMax) {
+        calendarMonthOffset_++;
+        calendarUpdated = true;
+      }
     }
     if (calendarUpdated && deps_.renderCalendarWithOffset) {
       deps_.renderCalendarWithOffset(calendarMonthOffset_);

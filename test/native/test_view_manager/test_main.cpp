@@ -32,7 +32,6 @@ void test_view_manager_begins_with_almanac() {
   vm.begin();
 
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, vm.currentView());
-  TEST_ASSERT_TRUE(vm.viewSwitched());
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.renderedViews.size()));
   TEST_ASSERT_EQUAL_STRING("almanac", f.renderedViews[0].c_str());
 }
@@ -46,7 +45,6 @@ void test_view_manager_switch_to_next_view_from_almanac() {
   vm.switchToNextView();
 
   TEST_ASSERT_EQUAL(homedeck::SystemView::Calendar, vm.currentView());
-  TEST_ASSERT_TRUE(vm.viewSwitched());
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.renderedViews.size()));
   TEST_ASSERT_EQUAL_STRING("calendar", f.renderedViews[0].c_str());
 }
@@ -61,7 +59,6 @@ void test_view_manager_switch_to_next_view_from_calendar() {
   vm.switchToNextView();
 
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, vm.currentView());
-  TEST_ASSERT_TRUE(vm.viewSwitched());
   TEST_ASSERT_EQUAL_STRING("almanac", f.renderedViews[0].c_str());
 }
 
@@ -81,13 +78,9 @@ void test_view_manager_does_not_switch_without_call() {
   Fixture f{};
   homedeck::ViewManager vm{f.deps()};
   vm.begin();
-  vm.resetViewSwitched();
   f.renderedViews.clear();
 
-  // 不调用 switchToNextView
-
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, vm.currentView());
-  TEST_ASSERT_FALSE(vm.viewSwitched());
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.renderedViews.size()));
 }
 

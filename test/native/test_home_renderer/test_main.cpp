@@ -508,14 +508,17 @@ void test_calendar_no_highlight_when_day_is_zero() {
   homedeck::HomeRenderer renderer;
   renderer.renderCalendar(data);
 
-  // 验证没有白色文字（高亮时使用 TFT_WHITE）
-  bool foundWhiteText = false;
+  // 日期网格区域 Y 范围: kCalDateStartY=108 到 kCalDateStartY + 6*(47+10)=450
+  constexpr int kDateGridMinY = 108;
+  constexpr int kDateGridMaxY = 450;
+
+  bool foundHighlight = false;
   for (const auto& print : M5.Display.prints) {
-    if (print.color == TFT_WHITE) {
-      foundWhiteText = true;
+    if (print.color == TFT_WHITE && print.y >= kDateGridMinY && print.y <= kDateGridMaxY) {
+      foundHighlight = true;
     }
   }
-  TEST_ASSERT_FALSE(foundWhiteText);
+  TEST_ASSERT_FALSE(foundHighlight);
 }
 
 void test_calendar_renders_past_month_correctly() {
