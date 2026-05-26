@@ -8,7 +8,7 @@ namespace homedeck {
 namespace {
 
 constexpr unsigned long kSetupShortcutHoldMs = 5000;
-constexpr unsigned long kHomeDisplayDurationMs = 60000;
+constexpr unsigned long kHomeDisplayDurationMs = 300000;
 constexpr std::time_t kTrustedUnixTimeThreshold = 1704067200;
 constexpr std::uint64_t kMicrosPerSecond = 1000000ULL;
 constexpr std::uint64_t kFallbackSleepSeconds = 3600ULL;

@@ -368,6 +368,75 @@ void test_home_renderer_draws_environment_placeholders_when_unavailable() {
   TEST_ASSERT_TRUE(foundHumidity);
 }
 
+void test_home_renderer_does_not_draw_bottom_center_message_by_default() {
+  auto data = figmaCalendarData();
+  homedeck::HomeRenderer renderer;
+
+  renderer.render(data);
+
+  for (const auto& print : M5.Display.prints) {
+    TEST_ASSERT_FALSE(print.text == "DEEP SLEEP");
+  }
+}
+
+void test_home_renderer_draws_bottom_center_message_when_present() {
+  auto data = figmaCalendarData();
+  data.bottomCenterMessage = "DEEP SLEEP";
+  data.temperatureAvailable = true;
+  data.temperatureCelsius = 30.04f;
+  data.humidityAvailable = true;
+  data.humidityPercent = 49.96f;
+  homedeck::HomeRenderer renderer;
+
+  renderer.render(data);
+
+  bool foundMessage = false;
+  bool foundTemperature = false;
+  bool foundHumidity = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.text == "DEEP SLEEP") {
+      TEST_ASSERT_EQUAL(200, print.x);
+      TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
+      TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_center), print.datum);
+      TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
+      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      foundMessage = true;
+    }
+    if (print.text == "30.0°C") {
+      TEST_ASSERT_EQUAL(12, print.x);
+      TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
+      TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_left), print.datum);
+      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
+      foundTemperature = true;
+    }
+    if (print.text == "50.0%") {
+      TEST_ASSERT_EQUAL(388, print.x);
+      TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
+      TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_right), print.datum);
+      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
+      foundHumidity = true;
+    }
+  }
+
+  TEST_ASSERT_TRUE(foundMessage);
+  TEST_ASSERT_TRUE(foundTemperature);
+  TEST_ASSERT_TRUE(foundHumidity);
+}
+
+void test_home_renderer_does_not_draw_bottom_center_message_for_other_text() {
+  auto data = figmaCalendarData();
+  data.bottomCenterMessage = "HELLO";
+  homedeck::HomeRenderer renderer;
+
+  renderer.render(data);
+
+  for (const auto& print : M5.Display.prints) {
+    TEST_ASSERT_FALSE(print.text == "DEEP SLEEP");
+  }
+}
+
 void test_home_renderer_limits_yi_and_ji_to_two_lines() {
   auto data = figmaCalendarData();
   data.yi = "甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥";
@@ -441,6 +510,9 @@ int main(int, char**) {
   RUN_TEST(test_home_renderer_shrinks_yi_ji_rows_when_content_is_single_line);
   RUN_TEST(test_home_renderer_draws_environment_readings_at_bottom_edges);
   RUN_TEST(test_home_renderer_draws_environment_placeholders_when_unavailable);
+  RUN_TEST(test_home_renderer_does_not_draw_bottom_center_message_by_default);
+  RUN_TEST(test_home_renderer_draws_bottom_center_message_when_present);
+  RUN_TEST(test_home_renderer_does_not_draw_bottom_center_message_for_other_text);
   RUN_TEST(test_home_renderer_limits_yi_and_ji_to_two_lines);
   RUN_TEST(test_home_renderer_draws_config_portal_layout);
   return UNITY_END();

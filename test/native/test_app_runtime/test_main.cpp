@@ -7,10 +7,50 @@
 #include <esp_sntp.h>
 #include <esp_sleep.h>
 
+#include <array>
 #include <cstdlib>
+#include <cstdint>
 
 #include "app_runtime.h"
 #include "boot_controller.h"
+
+namespace {
+
+std::uint8_t sht40Crc(std::uint8_t msb, std::uint8_t lsb) {
+  std::uint8_t crc = 0xFF;
+  const std::uint8_t bytes[] = {msb, lsb};
+  for (const std::uint8_t byte : bytes) {
+    crc ^= byte;
+    for (int bit = 0; bit < 8; ++bit) {
+      crc = (crc & 0x80) ? static_cast<std::uint8_t>((crc << 1) ^ 0x31) : static_cast<std::uint8_t>(crc << 1);
+    }
+  }
+  return crc;
+}
+
+std::array<std::uint8_t, 6> makeSht40Frame(std::uint16_t tempRaw, std::uint16_t humidityRaw) {
+  const auto tMsb = static_cast<std::uint8_t>(tempRaw >> 8);
+  const auto tLsb = static_cast<std::uint8_t>(tempRaw & 0xFF);
+  const auto hMsb = static_cast<std::uint8_t>(humidityRaw >> 8);
+  const auto hLsb = static_cast<std::uint8_t>(humidityRaw & 0xFF);
+  return {tMsb, tLsb, sht40Crc(tMsb, tLsb), hMsb, hLsb, sht40Crc(hMsb, hLsb)};
+}
+
+void loadEnvironmentFrame(std::uint16_t tempRaw, std::uint16_t humidityRaw) {
+  const auto frame = makeSht40Frame(tempRaw, humidityRaw);
+  std::copy(frame.begin(), frame.end(), M5.In_I2C.nextReadBuffer.begin());
+}
+
+bool hasDeepSleepPrint() {
+  for (const auto& print : M5.Display.prints) {
+    if (print.text == "DEEP SLEEP") {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
 
 void setUp() {
   M5 = FakeM5Global{};
@@ -26,6 +66,8 @@ void tearDown() {
 }
 
 void test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_display_sleep() {
+  M5.In_I2C.enabled = true;
+  loadEnvironmentFrame(28086, 29360);
   homedeck::HomeSleepRequest request{};
   request.timerWakeupUs = 43200000000ULL;
   request.wakeupGpio = 1;
@@ -46,8 +88,9 @@ void test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_display_sleep
   TEST_ASSERT_EQUAL(ESP_PD_OPTION_ON, gFakeSleepPdOption);
   TEST_ASSERT_EQUAL(1, gFakeExt0Gpio);
   TEST_ASSERT_EQUAL(0, gFakeExt0Level);
+  TEST_ASSERT_TRUE(hasDeepSleepPrint());
   TEST_ASSERT_EQUAL(1, M5.Display.sleepCount);
-  TEST_ASSERT_EQUAL(1, M5.Display.waitDisplayCount);
+  TEST_ASSERT_EQUAL(2, M5.Display.waitDisplayCount);
   TEST_ASSERT_TRUE(gDeepSleepCalled);
 }
 
@@ -91,6 +134,8 @@ void test_sync_ntp_returns_time_after_sntp_completion() {
 }
 
 void test_enter_home_deep_sleep_does_not_sleep_when_timer_wakeup_fails() {
+  M5.In_I2C.enabled = true;
+  loadEnvironmentFrame(28086, 29360);
   homedeck::HomeSleepRequest request{};
   request.timerWakeupUs = 43200000000ULL;
   request.wakeupGpio = 1;
@@ -101,11 +146,14 @@ void test_enter_home_deep_sleep_does_not_sleep_when_timer_wakeup_fails() {
 
   TEST_ASSERT_FALSE(gFakeTimerWakeupConfigured);
   TEST_ASSERT_FALSE(gFakeGpioWakeupConfigured);
+  TEST_ASSERT_FALSE(hasDeepSleepPrint());
   TEST_ASSERT_EQUAL(0, M5.Display.sleepCount);
   TEST_ASSERT_FALSE(gDeepSleepCalled);
 }
 
 void test_enter_home_deep_sleep_does_not_sleep_when_rtc_gpio_setup_fails() {
+  M5.In_I2C.enabled = true;
+  loadEnvironmentFrame(28086, 29360);
   homedeck::HomeSleepRequest request{};
   request.timerWakeupUs = 43200000000ULL;
   request.wakeupGpio = 1;
@@ -117,11 +165,81 @@ void test_enter_home_deep_sleep_does_not_sleep_when_rtc_gpio_setup_fails() {
   TEST_ASSERT_TRUE(gFakeTimerWakeupConfigured);
   TEST_ASSERT_EQUAL(-1, gFakeExt0Gpio);
   TEST_ASSERT_FALSE(gFakeSleepPdConfigured);
+  TEST_ASSERT_FALSE(hasDeepSleepPrint());
+  TEST_ASSERT_EQUAL(0, M5.Display.sleepCount);
+  TEST_ASSERT_FALSE(gDeepSleepCalled);
+}
+
+void test_enter_home_deep_sleep_does_not_sleep_when_rtc_gpio_pulldown_disable_fails() {
+  M5.In_I2C.enabled = true;
+  loadEnvironmentFrame(28086, 29360);
+  homedeck::HomeSleepRequest request{};
+  request.timerWakeupUs = 43200000000ULL;
+  request.wakeupGpio = 1;
+  request.wakeOnLow = true;
+  gFakeRtcGpioPulldownDisableError = ESP_ERR_INVALID_ARG;
+
+  homedeck::enterHomeDeepSleep(request);
+
+  TEST_ASSERT_TRUE(gFakeTimerWakeupConfigured);
+  TEST_ASSERT_EQUAL(1, gFakeRtcGpioPullupPin);
+  TEST_ASSERT_EQUAL(-1, gFakeRtcGpioPulldownDisabledPin);
+  TEST_ASSERT_EQUAL(-1, gFakeRtcGpioSleepDirectionPin);
+  TEST_ASSERT_FALSE(gFakeSleepPdConfigured);
+  TEST_ASSERT_EQUAL(-1, gFakeExt0Gpio);
+  TEST_ASSERT_FALSE(hasDeepSleepPrint());
+  TEST_ASSERT_EQUAL(0, M5.Display.sleepCount);
+  TEST_ASSERT_FALSE(gDeepSleepCalled);
+}
+
+void test_enter_home_deep_sleep_does_not_sleep_when_rtc_gpio_sleep_direction_fails() {
+  M5.In_I2C.enabled = true;
+  loadEnvironmentFrame(28086, 29360);
+  homedeck::HomeSleepRequest request{};
+  request.timerWakeupUs = 43200000000ULL;
+  request.wakeupGpio = 1;
+  request.wakeOnLow = true;
+  gFakeRtcGpioSleepDirectionError = ESP_ERR_INVALID_ARG;
+
+  homedeck::enterHomeDeepSleep(request);
+
+  TEST_ASSERT_TRUE(gFakeTimerWakeupConfigured);
+  TEST_ASSERT_EQUAL(1, gFakeRtcGpioPullupPin);
+  TEST_ASSERT_EQUAL(1, gFakeRtcGpioPulldownDisabledPin);
+  TEST_ASSERT_EQUAL(-1, gFakeRtcGpioSleepDirectionPin);
+  TEST_ASSERT_FALSE(gFakeSleepPdConfigured);
+  TEST_ASSERT_EQUAL(-1, gFakeExt0Gpio);
+  TEST_ASSERT_FALSE(hasDeepSleepPrint());
+  TEST_ASSERT_EQUAL(0, M5.Display.sleepCount);
+  TEST_ASSERT_FALSE(gDeepSleepCalled);
+}
+
+void test_enter_home_deep_sleep_does_not_sleep_when_sleep_pd_config_fails() {
+  M5.In_I2C.enabled = true;
+  loadEnvironmentFrame(28086, 29360);
+  homedeck::HomeSleepRequest request{};
+  request.timerWakeupUs = 43200000000ULL;
+  request.wakeupGpio = 1;
+  request.wakeOnLow = true;
+  gFakeSleepPdConfigError = ESP_ERR_INVALID_ARG;
+
+  homedeck::enterHomeDeepSleep(request);
+
+  TEST_ASSERT_TRUE(gFakeTimerWakeupConfigured);
+  TEST_ASSERT_EQUAL(1, gFakeRtcGpioPullupPin);
+  TEST_ASSERT_EQUAL(1, gFakeRtcGpioPulldownDisabledPin);
+  TEST_ASSERT_EQUAL(1, gFakeRtcGpioSleepDirectionPin);
+  TEST_ASSERT_EQUAL(RTC_GPIO_MODE_INPUT_ONLY, gFakeRtcGpioSleepDirectionMode);
+  TEST_ASSERT_FALSE(gFakeSleepPdConfigured);
+  TEST_ASSERT_EQUAL(-1, gFakeExt0Gpio);
+  TEST_ASSERT_FALSE(hasDeepSleepPrint());
   TEST_ASSERT_EQUAL(0, M5.Display.sleepCount);
   TEST_ASSERT_FALSE(gDeepSleepCalled);
 }
 
 void test_enter_home_deep_sleep_does_not_sleep_when_ext0_wakeup_fails() {
+  M5.In_I2C.enabled = true;
+  loadEnvironmentFrame(28086, 29360);
   homedeck::HomeSleepRequest request{};
   request.timerWakeupUs = 43200000000ULL;
   request.wakeupGpio = 1;
@@ -132,6 +250,7 @@ void test_enter_home_deep_sleep_does_not_sleep_when_ext0_wakeup_fails() {
 
   TEST_ASSERT_TRUE(gFakeSleepPdConfigured);
   TEST_ASSERT_EQUAL(-1, gFakeExt0Gpio);
+  TEST_ASSERT_FALSE(hasDeepSleepPrint());
   TEST_ASSERT_EQUAL(0, M5.Display.sleepCount);
   TEST_ASSERT_FALSE(gDeepSleepCalled);
 }
@@ -144,6 +263,9 @@ int main(int, char**) {
   RUN_TEST(test_sync_ntp_returns_time_after_sntp_completion);
   RUN_TEST(test_enter_home_deep_sleep_does_not_sleep_when_timer_wakeup_fails);
   RUN_TEST(test_enter_home_deep_sleep_does_not_sleep_when_rtc_gpio_setup_fails);
+  RUN_TEST(test_enter_home_deep_sleep_does_not_sleep_when_rtc_gpio_pulldown_disable_fails);
+  RUN_TEST(test_enter_home_deep_sleep_does_not_sleep_when_rtc_gpio_sleep_direction_fails);
+  RUN_TEST(test_enter_home_deep_sleep_does_not_sleep_when_sleep_pd_config_fails);
   RUN_TEST(test_enter_home_deep_sleep_does_not_sleep_when_ext0_wakeup_fails);
   return UNITY_END();
 }

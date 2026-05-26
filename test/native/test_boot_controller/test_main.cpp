@@ -185,7 +185,7 @@ void test_system_mode_does_not_sleep_before_home_display_window() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.now = 59999;
+  f.now = 299999;
   controller.update();
 
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.sleepRequests.size()));
@@ -198,7 +198,7 @@ void test_system_mode_sleeps_to_next_midnight_after_home_display_window() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.now = 60000;
+  f.now = 300000;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
@@ -216,7 +216,7 @@ void test_system_mode_sleeps_to_local_midnight_after_manual_shanghai_time() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.now = 60000;
+  f.now = 300000;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
@@ -230,11 +230,11 @@ void test_system_mode_sleep_window_starts_after_home_render_completes() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.now = 64999;
+  f.now = 304999;
   controller.update();
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.sleepRequests.size()));
 
-  f.now = 65000;
+  f.now = 305000;
   controller.update();
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
 }
@@ -246,7 +246,7 @@ void test_system_mode_uses_one_hour_sleep_when_time_is_not_trusted() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.now = 60000;
+  f.now = 300000;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
@@ -259,9 +259,9 @@ void test_system_mode_requests_sleep_only_once() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.now = 60000;
+  f.now = 300000;
   controller.update();
-  f.now = 70000;
+  f.now = 310000;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
@@ -272,7 +272,7 @@ void test_config_mode_does_not_request_home_sleep() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.now = 60000;
+  f.now = 300000;
   controller.update();
 
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.sleepRequests.size()));
@@ -288,7 +288,7 @@ void test_ab_config_reboot_takes_priority_over_sleep() {
   f.buttonsPressed = true;
   f.now = 55000;
   controller.update();
-  f.now = 60000;
+  f.now = 300000;
   controller.update();
 
   TEST_ASSERT_TRUE(f.forceFlagWritten);

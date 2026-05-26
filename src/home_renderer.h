@@ -25,6 +25,7 @@ struct HomeCalendarData {
   float temperatureCelsius = 0.0f;
   bool humidityAvailable = false;
   float humidityPercent = 0.0f;
+  std::string bottomCenterMessage;
 };
 
 HomeCalendarData makeHomeCalendarData(const std::tm& localTime);

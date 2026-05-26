@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "boot_controller.h"
 #include "config_portal.h"
@@ -161,7 +162,7 @@ ConfigValidationResult saveSubmittedConfig(
   return ConfigValidationResult{};
 }
 
-void renderHomeWithEnvironment() {
+HomeCalendarData makeCurrentHomeCalendarDataWithEnvironment(const std::string& bottomCenterMessage = {}) {
   HomeCalendarData data = makeCurrentHomeCalendarData();
   const EnvironmentReading reading = readSht40Environment();
   if (reading.ok) {
@@ -170,7 +171,16 @@ void renderHomeWithEnvironment() {
     data.humidityAvailable = true;
     data.humidityPercent = reading.humidityPercent;
   }
-  gHomeRenderer.render(data);
+  data.bottomCenterMessage = bottomCenterMessage;
+  return data;
+}
+
+void renderHomeWithEnvironment() {
+  gHomeRenderer.render(makeCurrentHomeCalendarDataWithEnvironment());
+}
+
+void renderHomeWithDeepSleepMessage() {
+  gHomeRenderer.render(makeCurrentHomeCalendarDataWithEnvironment("DEEP SLEEP"));
 }
 
 }  // namespace
@@ -205,6 +215,7 @@ void enterHomeDeepSleep(const HomeSleepRequest& request) {
   if (esp_sleep_enable_ext0_wakeup(wakeupGpio, request.wakeOnLow ? 0 : 1) != ESP_OK) {
     return;
   }
+  renderHomeWithDeepSleepMessage();
   M5.Display.sleep();
   M5.Display.waitDisplay();
   esp_deep_sleep_start();
