@@ -198,6 +198,42 @@ void renderCalendarWithEnvironment() {
   gHomeRenderer.renderCalendar(makeCurrentCalendarData());
 }
 
+void renderCalendarWithOffset(int monthOffset) {
+  std::time_t now = time(nullptr);
+  std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
+  if (local == nullptr) {
+    gHomeRenderer.renderCalendar(makeCurrentCalendarData());
+    return;
+  }
+
+  int targetYear = local->tm_year + 1900;
+  int targetMonth = local->tm_mon + 1 + monthOffset;
+
+  while (targetMonth > 12) {
+    targetMonth -= 12;
+    targetYear++;
+  }
+  while (targetMonth < 1) {
+    targetMonth += 12;
+    targetYear--;
+  }
+
+  CalendarData data;
+  data.year = targetYear;
+  data.month = targetMonth;
+  data.day = (monthOffset == 0) ? local->tm_mday : 0;
+
+  const EnvironmentReading reading = readSht40Environment();
+  if (reading.ok) {
+    data.temperatureAvailable = true;
+    data.temperatureCelsius = reading.temperatureCelsius;
+    data.humidityAvailable = true;
+    data.humidityPercent = reading.humidityPercent;
+  }
+
+  gHomeRenderer.renderCalendar(data);
+}
+
 void renderHomeWithDeepSleepMessage() {
   HomeCalendarData data = makeCurrentHomeCalendarData();
   data.bottomCenterMessage = "DEEP SLEEP";
@@ -273,7 +309,15 @@ BootControllerDeps makeBootDeps() {
   };
   deps.renderAlmanac = renderHomeWithEnvironment;
   deps.renderCalendar = renderCalendarWithEnvironment;
-  deps.wasCalendarButtonClicked = []() { return M5.BtnC.wasClicked(); };
+  deps.renderCalendarWithOffset = renderCalendarWithOffset;
+  deps.getCalendarButtonClickCount = []() -> int {
+    if (M5.BtnC.wasDecideClickCount()) {
+      return static_cast<int>(M5.BtnC.getClickCount());
+    }
+    return 0;
+  };
+  deps.wasPrevMonthClicked = []() { return M5.BtnB.wasClicked(); };
+  deps.wasNextMonthClicked = []() { return M5.BtnA.wasClicked(); };
   deps.updateButtons = []() { M5.update(); };
   deps.areSetupButtonsPressed = []() { return M5.BtnA.isPressed() && M5.BtnB.isPressed(); };
   deps.millis = []() { return millis(); };

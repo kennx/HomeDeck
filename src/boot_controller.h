@@ -34,7 +34,10 @@ struct BootControllerDeps {
   std::function<void()> restoreSystemTimeFromRtc;
   std::function<void()> renderAlmanac;
   std::function<void()> renderCalendar;
-  std::function<bool()> wasCalendarButtonClicked;
+  std::function<void(int monthOffset)> renderCalendarWithOffset;
+  std::function<int()> getCalendarButtonClickCount;
+  std::function<bool()> wasPrevMonthClicked;
+  std::function<bool()> wasNextMonthClicked;
   std::function<void()> updateButtons;
   std::function<bool()> areSetupButtonsPressed;
   std::function<unsigned long()> millis;
@@ -67,6 +70,7 @@ class BootController {
   bool setupShortcutConsumed_ = false;
   unsigned long lastActivityMs_ = 0;
   bool homeSleepRequested_ = false;
+  int calendarMonthOffset_ = 0;
   std::unique_ptr<ViewManager> viewManager_;
 };
 

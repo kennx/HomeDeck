@@ -499,6 +499,48 @@ void test_home_renderer_draws_config_portal_layout() {
   TEST_ASSERT_EQUAL(1, M5.Display.waitDisplayCount);
 }
 
+void test_calendar_no_highlight_when_day_is_zero() {
+  homedeck::CalendarData data;
+  data.year = 2026;
+  data.month = 4;
+  data.day = 0;
+
+  homedeck::HomeRenderer renderer;
+  renderer.renderCalendar(data);
+
+  // 验证没有白色文字（高亮时使用 TFT_WHITE）
+  bool foundWhiteText = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.color == TFT_WHITE) {
+      foundWhiteText = true;
+    }
+  }
+  TEST_ASSERT_FALSE(foundWhiteText);
+}
+
+void test_calendar_renders_past_month_correctly() {
+  homedeck::CalendarData data;
+  data.year = 2026;
+  data.month = 4;
+  data.day = 26;
+
+  homedeck::HomeRenderer renderer;
+  renderer.renderCalendar(data);
+
+  bool foundYear = false;
+  bool foundMonth = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.text == "2026 年") {
+      foundYear = true;
+    }
+    if (print.text == "四月") {
+      foundMonth = true;
+    }
+  }
+  TEST_ASSERT_TRUE(foundYear);
+  TEST_ASSERT_TRUE(foundMonth);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_home_calendar_data_uses_almanac_package_when_available);
@@ -515,5 +557,7 @@ int main(int, char**) {
   RUN_TEST(test_home_renderer_does_not_draw_bottom_center_message_for_other_text);
   RUN_TEST(test_home_renderer_limits_yi_and_ji_to_two_lines);
   RUN_TEST(test_home_renderer_draws_config_portal_layout);
+  RUN_TEST(test_calendar_no_highlight_when_day_is_zero);
+  RUN_TEST(test_calendar_renders_past_month_correctly);
   return UNITY_END();
 }

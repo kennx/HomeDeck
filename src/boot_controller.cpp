@@ -60,12 +60,37 @@ void BootController::update() {
     return;
   }
 
-  if (viewManager_) {
-    viewManager_->resetViewSwitched();
-    if (deps_.wasCalendarButtonClicked && deps_.wasCalendarButtonClicked()) {
+  // 1. 检测 BtnC（视图切换 / 双击回本月）
+  const int btnCClicks = deps_.getCalendarButtonClickCount ? deps_.getCalendarButtonClickCount() : 0;
+  if (btnCClicks == 1) {
+    if (viewManager_) {
       viewManager_->switchToNextView();
+      if (viewManager_->viewSwitched()) {
+        lastActivityMs_ = now;
+      }
     }
-    if (viewManager_->viewSwitched()) {
+  } else if (btnCClicks == 2) {
+    if (viewManager_ && viewManager_->currentView() == SystemView::Calendar) {
+      calendarMonthOffset_ = 0;
+      if (deps_.renderCalendarWithOffset) {
+        deps_.renderCalendarWithOffset(0);
+      }
+      lastActivityMs_ = now;
+    }
+  }
+
+  // 2. 检测日历翻页（仅在 Calendar 视图）
+  if (viewManager_ && viewManager_->currentView() == SystemView::Calendar) {
+    bool calendarUpdated = false;
+    if (deps_.wasPrevMonthClicked && deps_.wasPrevMonthClicked()) {
+      calendarMonthOffset_--;
+      calendarUpdated = true;
+    } else if (deps_.wasNextMonthClicked && deps_.wasNextMonthClicked()) {
+      calendarMonthOffset_++;
+      calendarUpdated = true;
+    }
+    if (calendarUpdated && deps_.renderCalendarWithOffset) {
+      deps_.renderCalendarWithOffset(calendarMonthOffset_);
       lastActivityMs_ = now;
     }
   }
@@ -94,6 +119,7 @@ void BootController::enterSystemMode() {
   setupButtonsWerePressed_ = false;
   setupShortcutConsumed_ = false;
   homeSleepRequested_ = false;
+  calendarMonthOffset_ = 0;
 
   if (deps_.restoreSystemTimeFromRtc) {
     deps_.restoreSystemTimeFromRtc();

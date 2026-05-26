@@ -732,6 +732,9 @@ using M5Canvas = FakeCanvas;
 struct FakeButton {
   bool pressed = false;
   bool clicked = false;
+  int clickCount = 0;
+  bool decideClickCount = false;
+
   bool isPressed() const {
     return pressed;
   }
@@ -741,6 +744,16 @@ struct FakeButton {
       return true;
     }
     return false;
+  }
+  bool wasDecideClickCount() {
+    if (decideClickCount) {
+      decideClickCount = false;
+      return true;
+    }
+    return false;
+  }
+  int getClickCount() const {
+    return clickCount;
   }
 };
 

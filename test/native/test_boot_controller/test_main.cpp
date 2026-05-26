@@ -15,7 +15,9 @@ struct Fixture {
   bool portalHandled = false;
   bool homeRendered = false;
   bool calendarRendered = false;
-  bool calendarButtonClicked = false;
+  int calendarButtonClickCount = 0;
+  bool prevMonthClicked = false;
+  bool nextMonthClicked = false;
   bool forceFlagWritten = false;
   bool forceFlagCleared = false;
   bool forceFlagWriteSucceeds = true;
@@ -26,6 +28,7 @@ struct Fixture {
   int updateCalls = 0;
   std::time_t currentUnix = 1704110400;
   std::vector<homedeck::HomeSleepRequest> sleepRequests;
+  std::vector<int> calendarOffsets;
 
   homedeck::BootControllerDeps deps() {
     homedeck::BootControllerDeps deps{};
@@ -53,7 +56,12 @@ struct Fixture {
       now += renderHomeDurationMs;
     };
     deps.renderCalendar = [this]() { calendarRendered = true; };
-    deps.wasCalendarButtonClicked = [this]() { return calendarButtonClicked; };
+    deps.renderCalendarWithOffset = [this](int offset) {
+      calendarOffsets.push_back(offset);
+    };
+    deps.getCalendarButtonClickCount = [this]() { return calendarButtonClickCount; };
+    deps.wasPrevMonthClicked = [this]() { return prevMonthClicked; };
+    deps.wasNextMonthClicked = [this]() { return nextMonthClicked; };
     deps.updateButtons = [this]() { ++updateCalls; };
     deps.areSetupButtonsPressed = [this]() { return buttonsPressed; };
     deps.millis = [this]() { return now; };
@@ -310,6 +318,177 @@ void test_config_mode_update_handles_portal_client() {
   TEST_ASSERT_TRUE(f.portalHandled);
 }
 
+void test_single_click_switches_view() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.homeRendered = false;
+  f.calendarRendered = false;
+  f.calendarButtonClickCount = 1;
+  controller.update();
+
+  TEST_ASSERT_TRUE(f.calendarRendered);
+  TEST_ASSERT_EQUAL(homedeck::SystemView::Calendar, controller.currentView());
+}
+
+void test_double_click_resets_to_today_in_calendar() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  // 先切换到 Calendar
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+
+  // 翻页到上月
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = false;
+
+  // 双击回本月
+  f.calendarOffsets.clear();
+  f.calendarButtonClickCount = 2;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
+  TEST_ASSERT_EQUAL(0, f.calendarOffsets[0]);
+}
+
+void test_double_click_ignored_in_almanac() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.calendarOffsets.clear();
+  f.calendarButtonClickCount = 2;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(0, static_cast<int>(f.calendarOffsets.size()));
+}
+
+void test_prev_month_click_in_calendar() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+
+  f.prevMonthClicked = true;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
+  TEST_ASSERT_EQUAL(-1, f.calendarOffsets[0]);
+}
+
+void test_next_month_click_in_calendar() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+
+  f.nextMonthClicked = true;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
+  TEST_ASSERT_EQUAL(1, f.calendarOffsets[0]);
+}
+
+void test_month_click_ignored_in_almanac() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.prevMonthClicked = true;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(0, static_cast<int>(f.calendarOffsets.size()));
+}
+
+void test_continuous_prev_month_clicks() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = true;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(2, static_cast<int>(f.calendarOffsets.size()));
+  TEST_ASSERT_EQUAL(-1, f.calendarOffsets[0]);
+  TEST_ASSERT_EQUAL(-2, f.calendarOffsets[1]);
+}
+
+void test_month_click_resets_sleep_timer() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+
+  f.now = 240000;
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = false;
+
+  f.now = 480000;
+  controller.update();
+  TEST_ASSERT_EQUAL(0, static_cast<int>(f.sleepRequests.size()));
+
+  f.now = 780000;
+  controller.update();
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
+}
+
+void test_enter_system_mode_resets_month_offset() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  // 先翻页
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = false;
+
+  // 重新进入 SystemMode（模拟唤醒）
+  controller.begin();
+  f.calendarOffsets.clear();
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+  f.prevMonthClicked = true;
+  controller.update();
+
+  // 如果偏移被重置，翻页后偏移应为 -1
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
+  TEST_ASSERT_EQUAL(-1, f.calendarOffsets[0]);
+}
+
 void test_calendar_button_click_switches_view_and_resets_sleep_timer() {
   Fixture f{};
   f.configured = true;
@@ -320,13 +499,13 @@ void test_calendar_button_click_switches_view_and_resets_sleep_timer() {
   TEST_ASSERT_FALSE(f.calendarRendered);
 
   f.now = 240000;
-  f.calendarButtonClicked = true;
+  f.calendarButtonClickCount = 1;
   controller.update();
 
   TEST_ASSERT_TRUE(f.calendarRendered);
   TEST_ASSERT_EQUAL(homedeck::SystemView::Calendar, controller.currentView());
 
-  f.calendarButtonClicked = false;
+  f.calendarButtonClickCount = 0;
   f.now = 480000;
   controller.update();
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.sleepRequests.size()));
@@ -342,12 +521,12 @@ void test_second_calendar_click_switches_back_to_almanac() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.calendarButtonClicked = true;
+  f.calendarButtonClickCount = 1;
   controller.update();
   TEST_ASSERT_TRUE(f.calendarRendered);
 
   f.homeRendered = false;
-  f.calendarButtonClicked = true;
+  f.calendarButtonClickCount = 1;
   controller.update();
   TEST_ASSERT_TRUE(f.homeRendered);
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
@@ -371,6 +550,15 @@ int main(int, char**) {
   RUN_TEST(test_config_mode_does_not_request_home_sleep);
   RUN_TEST(test_ab_config_reboot_takes_priority_over_sleep);
   RUN_TEST(test_config_mode_update_handles_portal_client);
+  RUN_TEST(test_single_click_switches_view);
+  RUN_TEST(test_double_click_resets_to_today_in_calendar);
+  RUN_TEST(test_double_click_ignored_in_almanac);
+  RUN_TEST(test_prev_month_click_in_calendar);
+  RUN_TEST(test_next_month_click_in_calendar);
+  RUN_TEST(test_month_click_ignored_in_almanac);
+  RUN_TEST(test_continuous_prev_month_clicks);
+  RUN_TEST(test_month_click_resets_sleep_timer);
+  RUN_TEST(test_enter_system_mode_resets_month_offset);
   RUN_TEST(test_calendar_button_click_switches_view_and_resets_sleep_timer);
   RUN_TEST(test_second_calendar_click_switches_back_to_almanac);
   return UNITY_END();
