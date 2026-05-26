@@ -19,3 +19,4 @@ __pycache__/
 .claude/
 .worktrees/
 compile_commands.json
+docs/superpowers
