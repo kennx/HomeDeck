@@ -333,6 +333,9 @@ void appSetup() {
   cfg.clear_display = false;
   M5.begin(cfg);
   M5.Display.setRotation(0);
+#ifndef UNIT_TEST
+  M5.Display.setEpdMode(epd_mode_t::epd_fast);
+#endif
   M5.Display.wakeup();
   gConfigStore.begin();
   gTimeService = std::make_unique<TimeService>(makeTimeDeps());
