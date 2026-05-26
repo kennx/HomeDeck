@@ -267,7 +267,9 @@ BootControllerDeps makeBootDeps() {
       gTimeService->applyTimezone(defaultTimezone()->iana);
     }
   };
-  deps.renderHome = renderHomeWithEnvironment;
+  deps.renderAlmanac = renderHomeWithEnvironment;
+  deps.renderCalendar = []() {};  // TODO: implement calendar rendering
+  deps.wasCalendarButtonClicked = []() { return M5.BtnC.wasClicked(); };
   deps.updateButtons = []() { M5.update(); };
   deps.areSetupButtonsPressed = []() { return M5.BtnA.isPressed() && M5.BtnB.isPressed(); };
   deps.millis = []() { return millis(); };

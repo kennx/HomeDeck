@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <ctime>
 #include <functional>
+#include <memory>
+
+#include "view_manager.h"
 
 namespace homedeck {
 
@@ -29,7 +32,9 @@ struct BootControllerDeps {
   std::function<void()> startConfigPortal;
   std::function<void()> handleConfigPortalClient;
   std::function<void()> restoreSystemTimeFromRtc;
-  std::function<void()> renderHome;
+  std::function<void()> renderAlmanac;
+  std::function<void()> renderCalendar;
+  std::function<bool()> wasCalendarButtonClicked;
   std::function<void()> updateButtons;
   std::function<bool()> areSetupButtonsPressed;
   std::function<unsigned long()> millis;
@@ -45,11 +50,13 @@ class BootController {
   void begin();
   void update();
   BootMode mode() const;
+  SystemView currentView() const;
 
  private:
   void enterConfigMode();
   void enterSystemMode();
   void updateSetupShortcut(unsigned long now);
+  void updateViewSwitch(unsigned long now);
   void updateHomeSleep(unsigned long now);
   HomeSleepRequest makeHomeSleepRequest() const;
 
@@ -59,8 +66,9 @@ class BootController {
   unsigned long setupButtonsPressedSinceMs_ = 0;
   bool setupButtonsWerePressed_ = false;
   bool setupShortcutConsumed_ = false;
-  unsigned long systemModeStartedAtMs_ = 0;
+  unsigned long lastActivityMs_ = 0;
   bool homeSleepRequested_ = false;
+  std::unique_ptr<ViewManager> viewManager_;
 };
 
 }  // namespace homedeck

@@ -59,11 +59,23 @@ void BootController::update() {
   if (setupShortcutConsumed_) {
     return;
   }
+
+  if (viewManager_) {
+    viewManager_->update();
+    if (viewManager_->viewSwitched()) {
+      lastActivityMs_ = now;
+    }
+  }
+
   updateHomeSleep(now);
 }
 
 BootMode BootController::mode() const {
   return mode_;
+}
+
+SystemView BootController::currentView() const {
+  return viewManager_ ? viewManager_->currentView() : SystemView::Almanac;
 }
 
 void BootController::enterConfigMode() {
@@ -83,17 +95,22 @@ void BootController::enterSystemMode() {
   if (deps_.restoreSystemTimeFromRtc) {
     deps_.restoreSystemTimeFromRtc();
   }
-  if (deps_.renderHome) {
-    deps_.renderHome();
-  }
-  systemModeStartedAtMs_ = deps_.millis ? deps_.millis() : 0;
+
+  ViewManagerDeps vmDeps{};
+  vmDeps.renderAlmanac = deps_.renderAlmanac;
+  vmDeps.renderCalendar = deps_.renderCalendar;
+  vmDeps.wasCalendarButtonClicked = deps_.wasCalendarButtonClicked;
+  viewManager_ = std::make_unique<ViewManager>(std::move(vmDeps));
+  viewManager_->begin();
+
+  lastActivityMs_ = deps_.millis ? deps_.millis() : 0;
 }
 
 void BootController::updateHomeSleep(unsigned long now) {
   if (homeSleepRequested_) {
     return;
   }
-  if (now - systemModeStartedAtMs_ < kHomeDisplayDurationMs) {
+  if (now - lastActivityMs_ < kHomeDisplayDurationMs) {
     return;
   }
 

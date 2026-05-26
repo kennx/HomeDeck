@@ -14,6 +14,8 @@ struct Fixture {
   bool portalStarted = false;
   bool portalHandled = false;
   bool homeRendered = false;
+  bool calendarRendered = false;
+  bool calendarButtonClicked = false;
   bool forceFlagWritten = false;
   bool forceFlagCleared = false;
   bool forceFlagWriteSucceeds = true;
@@ -46,10 +48,12 @@ struct Fixture {
     deps.startConfigPortal = [this]() { portalStarted = true; };
     deps.handleConfigPortalClient = [this]() { portalHandled = true; };
     deps.restoreSystemTimeFromRtc = []() {};
-    deps.renderHome = [this]() {
+    deps.renderAlmanac = [this]() {
       homeRendered = true;
       now += renderHomeDurationMs;
     };
+    deps.renderCalendar = [this]() { calendarRendered = true; };
+    deps.wasCalendarButtonClicked = [this]() { return calendarButtonClicked; };
     deps.updateButtons = [this]() { ++updateCalls; };
     deps.areSetupButtonsPressed = [this]() { return buttonsPressed; };
     deps.millis = [this]() { return now; };
@@ -306,6 +310,49 @@ void test_config_mode_update_handles_portal_client() {
   TEST_ASSERT_TRUE(f.portalHandled);
 }
 
+void test_calendar_button_click_switches_view_and_resets_sleep_timer() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  TEST_ASSERT_TRUE(f.homeRendered);
+  TEST_ASSERT_FALSE(f.calendarRendered);
+
+  f.now = 240000;
+  f.calendarButtonClicked = true;
+  controller.update();
+
+  TEST_ASSERT_TRUE(f.calendarRendered);
+  TEST_ASSERT_EQUAL(homedeck::SystemView::Calendar, controller.currentView());
+
+  f.calendarButtonClicked = false;
+  f.now = 480000;
+  controller.update();
+  TEST_ASSERT_EQUAL(0, static_cast<int>(f.sleepRequests.size()));
+
+  f.now = 780000;
+  controller.update();
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
+}
+
+void test_second_calendar_click_switches_back_to_almanac() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.calendarButtonClicked = true;
+  controller.update();
+  TEST_ASSERT_TRUE(f.calendarRendered);
+
+  f.homeRendered = false;
+  f.calendarButtonClicked = true;
+  controller.update();
+  TEST_ASSERT_TRUE(f.homeRendered);
+  TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_first_boot_enters_config_mode);
@@ -324,5 +371,7 @@ int main(int, char**) {
   RUN_TEST(test_config_mode_does_not_request_home_sleep);
   RUN_TEST(test_ab_config_reboot_takes_priority_over_sleep);
   RUN_TEST(test_config_mode_update_handles_portal_client);
+  RUN_TEST(test_calendar_button_click_switches_view_and_resets_sleep_timer);
+  RUN_TEST(test_second_calendar_click_switches_back_to_almanac);
   return UNITY_END();
 }
