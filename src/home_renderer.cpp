@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <algorithm>
 
 #include "almanac_provider.h"
 #include "generated/device_font_vlw.h"
@@ -189,6 +191,66 @@ std::size_t utf8CodePointLength(unsigned char leadByte) {
     return 4;
   }
   return 1;
+}
+
+int getEventPriority(const std::string& event) {
+  static const std::unordered_map<std::string, int> kPriorityMap = {
+      // 1. 婚嫁、求嗣类
+      {"嫁娶", 10}, {"纳采", 11}, {"订盟", 12}, {"问名", 13}, {"纳婿", 14},
+      {"归宁", 15}, {"求嗣", 16}, {"祈福", 17}, {"冠笄", 18},
+      // 2. 丧葬、祭祀类
+      {"安葬", 20}, {"破土", 21}, {"启攒", 22}, {"入殓", 23}, {"移柩", 24},
+      {"祭祀", 25}, {"普渡", 26}, {"谢土", 27},
+      // 3. 建乔、动土、入宅类
+      {"入宅", 30}, {"移徙", 31}, {"修造", 32}, {"动土", 33}, {"竖柱", 34},
+      {"上梁", 35}, {"盖屋", 36}, {"安床", 37}, {"安门", 38}, {"修门", 39},
+      // 4. 出行、开张、交易、纳财类
+      {"出行", 40}, {"赴任", 41}, {"开市", 42}, {"立券", 43}, {"交易", 44},
+      {"纳财", 45}, {"纳畜", 46}, {"置产", 47}, {"开仓", 48}, {"出货财", 49},
+      // 5. 日常生活、解除、求医类
+      {"解除", 50}, {"破屋坏垣", 51}, {"理发", 52}, {"沐浴", 53}, {"扫舍", 54},
+      {"整手足甲", 55}, {"求医", 56}, {"治病", 57}, {"针灸", 58}
+  };
+  auto it = kPriorityMap.find(event);
+  if (it != kPriorityMap.end()) {
+    return it->second;
+  }
+  return 999; // 未识别事件默认极低优先级
+}
+
+std::string sortAlmanacEvents(const std::string& text) {
+  std::vector<std::string> words;
+  std::string current;
+  for (char ch : text) {
+    if (ch == ' ') {
+      if (!current.empty()) {
+        words.push_back(current);
+        current.clear();
+      }
+    } else {
+      current += ch;
+    }
+  }
+  if (!current.empty()) {
+    words.push_back(current);
+  }
+
+  if (words.size() <= 1) {
+    return text;
+  }
+
+  std::stable_sort(words.begin(), words.end(), [](const std::string& a, const std::string& b) {
+    return getEventPriority(a) < getEventPriority(b);
+  });
+
+  std::string sortedText;
+  for (std::size_t i = 0; i < words.size(); ++i) {
+    if (i > 0) {
+      sortedText += " ";
+    }
+    sortedText += words[i];
+  }
+  return sortedText;
 }
 
 std::vector<std::string> tokenize(const std::string& text) {
@@ -487,6 +549,9 @@ void HomeRenderer::render(const HomeCalendarData& data) {
   M5Canvas& canvas = sprite();
   prepareScreen(canvas);
 
+  const std::string sortedYi = sortAlmanacEvents(data.yi);
+  const std::string sortedJi = sortAlmanacEvents(data.ji);
+
   const std::uint16_t themeColor = TFT_BLACK;
 
   if (canvas.loadFont(generated::kDeviceFontVlw)) {
@@ -521,11 +586,11 @@ void HomeRenderer::render(const HomeCalendarData& data) {
     canvas.drawString(data.ganzhi.c_str(), kCalendarCenterX, kCalendarGanzhiTopY);
 
     const int yiRowTop = kTableRow2BottomY;
-    const int yiRowHeight = dynamicActionRowHeight(canvas, data.yi);
+    const int yiRowHeight = dynamicActionRowHeight(canvas, sortedYi);
     const int yiRowBottomY = yiRowTop + yiRowHeight;
     const int jiRowTop = yiRowBottomY;
     const int jiTextY = jiRowTop + kTableRowPaddingY;
-    const int jiRowHeight = dynamicActionRowHeight(canvas, data.ji);
+    const int jiRowHeight = dynamicActionRowHeight(canvas, sortedJi);
     const int tableHeight = kTableFixedRowHeight * 2 + yiRowHeight + jiRowHeight;
 
     canvas.drawRect(kTableLeftX, kTableTopY, kTableWidth, tableHeight, themeColor);
@@ -550,10 +615,10 @@ void HomeRenderer::render(const HomeCalendarData& data) {
 
     canvas.setTextDatum(textdatum_t::top_left);
     canvas.drawString("宜", kTableTextLeftX, kTableYiTextY);
-    drawWrappedText(canvas, data.yi, kTableContentLeftX, kTableYiTextY, kTableContentWidth, kTableLineHeight, kMaxActionLines);
+    drawWrappedText(canvas, sortedYi, kTableContentLeftX, kTableYiTextY, kTableContentWidth, kTableLineHeight, kMaxActionLines);
 
     canvas.drawString("忌", kTableTextLeftX, jiTextY);
-    drawWrappedText(canvas, data.ji, kTableContentLeftX, jiTextY, kTableContentWidth, kTableLineHeight, kMaxActionLines);
+    drawWrappedText(canvas, sortedJi, kTableContentLeftX, jiTextY, kTableContentWidth, kTableLineHeight, kMaxActionLines);
 
     drawEnvironmentReadings(canvas, data);
 
