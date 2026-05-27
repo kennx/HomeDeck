@@ -591,7 +591,7 @@ constexpr int kCalWeekdayTopY = 51;
 constexpr int kCalWeekdayHeight = 47;
 constexpr int kCalDateStartY = 108;
 constexpr int kCalDateRowHeight = 47;
-constexpr int kCalDateRowGap = 10;
+constexpr int kCalDateRowGap = 0;
 constexpr int kCalColCount = 7;
 constexpr int kCalDateRows = 6;
 
@@ -692,11 +692,9 @@ void HomeRenderer::renderCalendar(const CalendarData& data) {
         const int cy = kCalDateStartY + row * (kCalDateRowHeight + kCalDateRowGap) + kCalDateRowHeight / 2;
 
         if (dayNumber == data.day) {
-          // 当天高亮：黑底白字
-          const int left = cellLeftX(col);
-          const int right = cellRightX(col);
-          canvas.fillRect(left, cy - kCalDateRowHeight / 2, right - left, kCalDateRowHeight, TFT_BLACK);
-          canvas.setTextColor(TFT_WHITE, TFT_BLACK);
+          // 当天高亮：正圆形黑底白字
+          canvas.fillCircle(cx, cy, 20, TFT_BLACK);
+          canvas.setTextColor(TFT_WHITE);
         } else {
           canvas.setTextColor(TFT_BLACK, TFT_WHITE);
         }
