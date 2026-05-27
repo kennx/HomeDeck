@@ -191,6 +191,33 @@ std::size_t utf8CodePointLength(unsigned char leadByte) {
   return 1;
 }
 
+std::vector<std::string> tokenize(const std::string& text) {
+  std::vector<std::string> tokens;
+  std::string currentWord;
+  for (std::size_t index = 0; index < text.size();) {
+    std::size_t length = utf8CodePointLength(static_cast<unsigned char>(text[index]));
+    if (index + length > text.size()) {
+      length = 1;
+    }
+    std::string glyph = text.substr(index, length);
+    index += length;
+
+    if (glyph == " " || glyph == "\n") {
+      if (!currentWord.empty()) {
+        tokens.push_back(currentWord);
+        currentWord.clear();
+      }
+      tokens.push_back(glyph);
+    } else {
+      currentWord += glyph;
+    }
+  }
+  if (!currentWord.empty()) {
+    tokens.push_back(currentWord);
+  }
+  return tokens;
+}
+
 void drawWrappedText(
     M5Canvas& canvas,
     const std::string& text,
@@ -213,37 +240,47 @@ void drawWrappedText(
     return true;
   };
 
-  for (std::size_t index = 0; index < text.size();) {
-    std::size_t length = utf8CodePointLength(static_cast<unsigned char>(text[index]));
-    if (index + length > text.size()) {
-      length = 1;
-    }
+  std::vector<std::string> tokens = tokenize(text);
 
-    std::string glyph = text.substr(index, length);
-    index += length;
-
-    if (glyph == "\n") {
+  for (const auto& token : tokens) {
+    if (token == "\n") {
       if (!moveToNextLine()) {
         return;
       }
       continue;
     }
-    if (glyph == " " && currentX == startX) {
+    if (token == " ") {
+      if (currentX == startX) {
+        continue; // 行首忽略空格
+      }
+      const int spaceWidth = canvas.textWidth(" ");
+      if (currentX + spaceWidth > startX + maxWidth) {
+        if (!moveToNextLine()) {
+          return;
+        }
+      } else {
+        currentX += spaceWidth;
+      }
       continue;
     }
 
-    const int glyphWidth = canvas.textWidth(glyph.c_str());
-    if (currentX > startX && currentX + glyphWidth > startX + maxWidth) {
+    // 这是一个词组（Word）
+    const int wordWidth = canvas.textWidth(token.c_str());
+    if (currentX > startX && currentX + wordWidth > startX + maxWidth) {
+      // 当前行放不下，尝试换行
       if (!moveToNextLine()) {
-        return;
-      }
-      if (glyph == " ") {
-        continue;
+        return; // 换行失败，直接丢弃该词组及后续内容以防止截断
       }
     }
 
-    canvas.drawString(glyph.c_str(), currentX, currentY);
-    currentX += glyphWidth;
+    // 检查在当前行是否能放下该词组
+    if (wordWidth <= maxWidth) {
+      canvas.drawString(token.c_str(), currentX, currentY);
+      currentX += wordWidth;
+    } else {
+      // 词组甚至超出了单行最大宽度，选择停止排版
+      return;
+    }
   }
 }
 
@@ -251,34 +288,42 @@ int wrappedLineCount(M5Canvas& canvas, const std::string& text, int maxWidth) {
   int lineCount = 1;
   int currentWidth = 0;
 
-  for (std::size_t index = 0; index < text.size();) {
-    std::size_t length = utf8CodePointLength(static_cast<unsigned char>(text[index]));
-    if (index + length > text.size()) {
-      length = 1;
-    }
+  std::vector<std::string> tokens = tokenize(text);
 
-    std::string glyph = text.substr(index, length);
-    index += length;
-
-    if (glyph == "\n") {
+  for (const auto& token : tokens) {
+    if (token == "\n") {
       ++lineCount;
       currentWidth = 0;
       continue;
     }
-    if (glyph == " " && currentWidth == 0) {
-      continue;
-    }
-
-    const int glyphWidth = canvas.textWidth(glyph.c_str());
-    if (currentWidth > 0 && currentWidth + glyphWidth > maxWidth) {
-      ++lineCount;
-      currentWidth = 0;
-      if (glyph == " ") {
-        continue;
+    if (token == " ") {
+      if (currentWidth == 0) {
+        continue; // 行首忽略空格
       }
+      const int spaceWidth = canvas.textWidth(" ");
+      if (currentWidth + spaceWidth > maxWidth) {
+        ++lineCount;
+        currentWidth = 0;
+      } else {
+        currentWidth += spaceWidth;
+      }
+      continue;
     }
 
-    currentWidth += glyphWidth;
+    // 这是一个词组（Word）
+    const int wordWidth = canvas.textWidth(token.c_str());
+    if (currentWidth > 0 && currentWidth + wordWidth > maxWidth) {
+      // 当前行放不下，换行
+      ++lineCount;
+      currentWidth = 0;
+    }
+
+    if (wordWidth <= maxWidth) {
+      currentWidth += wordWidth;
+    } else {
+      // 词组超出单行最大宽度，在实际绘制中会被丢弃停止，此处也直接 break 保持绝对一致
+      break;
+    }
   }
 
   return lineCount;
