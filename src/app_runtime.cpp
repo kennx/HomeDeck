@@ -273,7 +273,7 @@ void enterHomeDeepSleep(const HomeSleepRequest& request) {
   renderHomeWithDeepSleepMessage();
   M5.Display.sleep();
   M5.Display.waitDisplay();
-  esp_deep_sleep_start();
+  M5.Power.deepSleep(request.timerWakeupUs, false);
 }
 
 namespace {

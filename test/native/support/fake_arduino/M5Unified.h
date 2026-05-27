@@ -584,6 +584,18 @@ struct FakeCanvas {
     }
   }
 
+  void setTextColor(std::uint32_t fg) {
+    textColor = fg;
+    if (parent != nullptr) {
+      parent->textColor = fg;
+    }
+  }
+
+  void fillCircle(int x, int y, int r, std::uint32_t color) {
+    rects.push_back({x - r, y - r, r * 2, r * 2, color});
+  }
+
+
   void setTextWrap(bool value) {
     if (parent != nullptr) {
       parent->textWrap = value;
@@ -783,6 +795,12 @@ struct FakePower {
   int16_t getVBUSVoltage() { return vbus_voltage; }
   int32_t getBatteryLevel() { return battery_level; }
   void setLed(uint8_t) {}
+  void deepSleep(std::uint64_t micro_seconds, bool touch_wakeup = true) {
+    (void)micro_seconds;
+    (void)touch_wakeup;
+    extern void esp_deep_sleep_start(void);
+    esp_deep_sleep_start();
+  }
 };
 
 struct FakeM5Config {

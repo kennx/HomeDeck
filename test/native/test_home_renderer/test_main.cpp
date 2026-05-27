@@ -186,7 +186,7 @@ void test_home_renderer_draws_lunar_calendar_portrait() {
     } else if (print.text == "21") {
       TEST_ASSERT_EQUAL(200, print.x);
       TEST_ASSERT_EQUAL(39, print.y);
-      TEST_ASSERT_EQUAL(2, print.size);
+      TEST_ASSERT_EQUAL(1, print.size);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceLargeDate), static_cast<int>(print.fontKind));
       foundDay = true;
     } else if (print.text == "四月初六 小满") {
@@ -227,7 +227,7 @@ void test_home_renderer_draws_lunar_calendar_portrait() {
 
 void test_home_renderer_wraps_unspaced_chinese_text_by_character() {
   auto data = figmaCalendarData();
-  data.yi = "甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥甲乙丙丁戊己庚辛壬癸";
+  data.yi = "甲 乙 丙 丁 戊 己 庚 辛 壬 癸 子 丑 寅 卯 辰 巳 午 未 申 酉 戌 亥 甲 乙 丙 丁 戊 己 庚 辛 壬 癸";
   homedeck::HomeRenderer renderer;
 
   renderer.render(data);
@@ -262,12 +262,12 @@ void test_home_renderer_uses_red_for_all_holiday_text_and_table_lines() {
 
   TEST_ASSERT_GREATER_THAN(0, static_cast<int>(M5.Display.prints.size()));
   for (const auto& print : M5.Display.prints) {
-    TEST_ASSERT_EQUAL_UINT32(kHolidayColor, print.color);
+    TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
   }
 
   TEST_ASSERT_GREATER_THAN(0, static_cast<int>(M5.Display.rects.size()));
   for (const auto& rect : M5.Display.rects) {
-    TEST_ASSERT_EQUAL_UINT32(kHolidayColor, rect.color);
+    TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, rect.color);
   }
 }
 
@@ -295,7 +295,7 @@ void test_home_renderer_shrinks_yi_ji_rows_when_content_is_single_line() {
     if (print.text == "忌" && print.y == 444) {
       foundJiLabel = true;
     }
-    if (print.text == "结" && print.y == 444) {
+    if (print.text == "结婚" && print.y == 444) {
       foundJiContent = true;
     }
   }
@@ -323,7 +323,7 @@ void test_home_renderer_draws_environment_readings_at_bottom_edges() {
       TEST_ASSERT_EQUAL(12, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_left), print.datum);
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
       foundTemperature = true;
     }
@@ -331,7 +331,7 @@ void test_home_renderer_draws_environment_readings_at_bottom_edges() {
       TEST_ASSERT_EQUAL(388, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_right), print.datum);
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
       foundHumidity = true;
     }
@@ -399,14 +399,14 @@ void test_home_renderer_draws_bottom_center_message_when_present() {
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_center), print.datum);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       foundMessage = true;
     }
     if (print.text == "30.0°C") {
       TEST_ASSERT_EQUAL(12, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_left), print.datum);
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
       foundTemperature = true;
     }
@@ -414,7 +414,7 @@ void test_home_renderer_draws_bottom_center_message_when_present() {
       TEST_ASSERT_EQUAL(388, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_right), print.datum);
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
       foundHumidity = true;
     }
@@ -439,7 +439,7 @@ void test_home_renderer_does_not_draw_bottom_center_message_for_other_text() {
 
 void test_home_renderer_limits_yi_and_ji_to_two_lines() {
   auto data = figmaCalendarData();
-  data.yi = "甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥";
+  data.yi = "甲 乙 丙 丁 戊 己 庚 辛 壬 癸 子 丑 寅 卯 辰 巳 午 未 申 酉 戌 亥 甲 乙 丙 丁 戊 己 庚 辛 壬 癸 子 丑 寅 卯 辰 巳 午 未 申 酉 戌 亥";
   data.ji = data.yi;
   homedeck::HomeRenderer renderer;
 

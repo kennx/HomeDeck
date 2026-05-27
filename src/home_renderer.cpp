@@ -773,6 +773,7 @@ void HomeRenderer::renderCalendar(const CalendarData& data) {
 
   // 底部温湿度
   if (canvas.loadFont(generated::kDeviceFontVlw)) {
+    canvas.setTextColor(TFT_BLACK, TFT_WHITE);
     HomeCalendarData envData{};
     envData.temperatureAvailable = data.temperatureAvailable;
     envData.temperatureCelsius = data.temperatureCelsius;
