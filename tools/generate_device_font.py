@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BODY_FONT = ROOT / "fonts" / "misans" / "MiSans-Semibold.ttf"
+BODY_FONT = ROOT / "fonts" / "misans" / "MiSans-Bold.ttf"
 METRIC_FONT = ROOT / "fonts" / "misans" / "MiSans-Bold.ttf"
 TIME_FONT = ROOT / "fonts" / "misans" / "MiSans-Heavy.ttf"
 CONFIG_FONT = ROOT / "fonts" / "misans" / "MiSans-Semibold.ttf"
