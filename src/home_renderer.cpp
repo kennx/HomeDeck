@@ -460,9 +460,7 @@ void HomeRenderer::render(const HomeCalendarData& data) {
   if (canvas.loadFont(generated::kDeviceLargeDateFontVlw)) {
     canvas.setTextColor(themeColor, TFT_WHITE);
     canvas.setTextDatum(textdatum_t::top_center);
-    canvas.setTextSize(2);
     canvas.drawString(data.day.c_str(), kCalendarCenterX, kCalendarDayTopY);
-    canvas.setTextSize(1);
     canvas.unloadFont();
   }
 
