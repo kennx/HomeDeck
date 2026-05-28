@@ -14,6 +14,10 @@
 #include "app_runtime.h"
 #include "boot_controller.h"
 
+namespace homedeck {
+extern SystemView gRtcSavedView;
+}
+
 namespace {
 
 std::uint8_t sht40Crc(std::uint8_t msb, std::uint8_t lsb) {
@@ -60,6 +64,7 @@ void setUp() {
   fakeEspSleepReset();
   fakeEspSleepResetExt0();
   fakeRtcIoReset();
+  homedeck::gRtcSavedView = homedeck::SystemView::Almanac;
 }
 
 void tearDown() {

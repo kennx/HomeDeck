@@ -433,7 +433,7 @@ void test_home_renderer_does_not_draw_bottom_center_message_when_empty() {
   renderer.render(data);
 
   for (const auto& print : M5.Display.prints) {
-    TEST_ASSERT_FALSE(print.text == "14:30");
+    TEST_ASSERT_FALSE(static_cast<int>(textdatum_t::bottom_center) == print.datum);
   }
 }
 

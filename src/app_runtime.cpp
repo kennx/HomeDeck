@@ -31,13 +31,14 @@
 #include "wifi_connection.h"
 
 namespace homedeck {
-namespace {
 
 #ifdef UNIT_TEST
 SystemView gRtcSavedView = SystemView::Almanac;
 #else
 RTC_DATA_ATTR SystemView gRtcSavedView = SystemView::Almanac;
 #endif
+
+namespace {
 
 #ifndef UNIT_TEST
 void i2cBusRecovery() {
@@ -187,7 +188,7 @@ ConfigValidationResult saveSubmittedConfig(
 std::string formatCurrentTimeHHMM() {
   time_t now = time(nullptr);
   tm* local = localtime(&now);
-  char timeStr[8] = {};
+  char timeStr[6] = {};
   if (local != nullptr) {
     snprintf(timeStr, sizeof(timeStr), "%02d:%02d", local->tm_hour, local->tm_min);
   }
@@ -365,6 +366,8 @@ BootControllerDeps makeBootDeps() {
   deps.preSleepRender = [](homedeck::SystemView view) {
     if (view == homedeck::SystemView::Almanac) {
       HomeCalendarData data = makeCurrentHomeCalendarData();
+      data.temperatureAvailable = false;
+      data.humidityAvailable = false;
       data.bottomCenterMessage = "--:--";
       gHomeRenderer.render(data);
     } else {
@@ -377,6 +380,8 @@ BootControllerDeps makeBootDeps() {
         local = &fallback;
       }
       CalendarData data = makeCalendarData(*local);
+      data.temperatureAvailable = false;
+      data.humidityAvailable = false;
       data.bottomCenterMessage = "--:--";
       gHomeRenderer.renderCalendar(data);
     }
