@@ -15,6 +15,8 @@ constexpr std::uint64_t kFallbackSleepSeconds = 3600ULL;
 constexpr int kButtonCWakeupGpio = 1;
 constexpr int kCalendarMonthOffsetMin = -120;
 constexpr int kCalendarMonthOffsetMax = 120;
+constexpr int kAlmanacDayOffsetMin = -3650;
+constexpr int kAlmanacDayOffsetMax = 3650;
 
 }  // namespace
 
