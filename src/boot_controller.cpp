@@ -69,6 +69,11 @@ void BootController::update() {
   if (btnCClicks == 1) {
     if (viewManager_) {
       viewManager_->switchToNextView();
+      if (viewManager_->currentView() == SystemView::Calendar) {
+        calendarMonthOffset_ = 0;
+      } else {
+        almanacDayOffset_ = 0;
+      }
       if (deps_.saveCurrentView) {
         deps_.saveCurrentView(viewManager_->currentView());
       }
@@ -166,7 +171,7 @@ void BootController::enterSystemMode() {
   vmDeps.renderAlmanac = deps_.renderAlmanac;
   vmDeps.renderCalendar = deps_.renderCalendar;
   viewManager_ = std::make_unique<ViewManager>(std::move(vmDeps));
-  
+
   SystemView initialView = deps_.loadSavedView ? deps_.loadSavedView() : SystemView::Almanac;
   viewManager_->begin(initialView);
 

@@ -743,6 +743,57 @@ void test_second_calendar_click_switches_back_to_almanac() {
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
 }
 
+void test_calendar_offset_resets_when_switching_away_and_back() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = false;
+
+  f.calendarOffsets.clear();
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+
+  f.prevMonthClicked = true;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
+  TEST_ASSERT_EQUAL(-1, f.calendarOffsets[0]);
+}
+
+void test_almanac_offset_resets_when_switching_away_and_back() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = false;
+
+  f.almanacOffsets.clear();
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  f.calendarButtonClickCount = 0;
+
+  f.prevMonthClicked = true;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.almanacOffsets.size()));
+  TEST_ASSERT_EQUAL(-1, f.almanacOffsets[0]);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_first_boot_enters_config_mode);
@@ -775,6 +826,8 @@ int main(int, char**) {
   RUN_TEST(test_enter_system_mode_resets_month_offset);
   RUN_TEST(test_calendar_button_click_switches_view_and_resets_sleep_timer);
   RUN_TEST(test_second_calendar_click_switches_back_to_almanac);
+  RUN_TEST(test_calendar_offset_resets_when_switching_away_and_back);
+  RUN_TEST(test_almanac_offset_resets_when_switching_away_and_back);
   RUN_TEST(test_prev_day_click_in_almanac);
   RUN_TEST(test_next_day_click_in_almanac);
   RUN_TEST(test_day_click_ignored_in_calendar);
