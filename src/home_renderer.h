@@ -45,6 +45,12 @@ struct CalendarData {
   int nextSpecialDay = 0;
   std::string nextSpecialTerm;
   std::string nextSpecialFestival;
+  int secondSpecialMonth = 0;
+  int secondSpecialDay = 0;
+  std::string secondSpecialTerm;
+  std::string secondSpecialFestival;
+  int todayMonth = 0;
+  int todayDay = 0;
 };
 
 CalendarData makeCalendarData(const std::tm& localTime);

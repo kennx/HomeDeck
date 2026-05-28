@@ -263,7 +263,8 @@ void renderCalendarWithOffset(int monthOffset) {
     targetYear--;
   }
 
-  CalendarData data;
+  // 基于今天查询 Almanac（分割线信息行始终显示今天）
+  CalendarData data = homedeck::makeCalendarData(*local);
   data.year = targetYear;
   data.month = targetMonth;
   data.day = (monthOffset == 0) ? local->tm_mday : 0;

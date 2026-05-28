@@ -527,12 +527,54 @@ std::string lookupLunarFestival(const std::string& lunarDate) {
   return (it != kFestivals.end()) ? it->second : "";
 }
 
+namespace {
+
+struct AlmanacCache {
+  int year = 0;
+  int month = 0;
+  int day = 0;
+  std::string lunarDate;
+  std::string solarTerm;
+  std::string festival;
+  int nextSpecialMonth = 0;
+  int nextSpecialDay = 0;
+  std::string nextSpecialTerm;
+  std::string nextSpecialFestival;
+  int secondSpecialMonth = 0;
+  int secondSpecialDay = 0;
+  std::string secondSpecialTerm;
+  std::string secondSpecialFestival;
+};
+
+AlmanacCache gAlmanacCache;
+
+}  // namespace
+
 CalendarData makeCalendarData(const std::tm& localTime) {
   CalendarData data{};
   data.year = localTime.tm_year + 1900;
   data.month = localTime.tm_mon + 1;
   data.day = localTime.tm_mday;
   data.todayWeekday = localTime.tm_wday;
+  data.todayMonth = data.month;
+  data.todayDay = data.day;
+
+  // 缓存命中：同一天直接复用，避免重复 180 次 Almanac 查询
+  if (gAlmanacCache.year == data.year && gAlmanacCache.month == data.month &&
+      gAlmanacCache.day == data.day) {
+    data.lunarDate = gAlmanacCache.lunarDate;
+    data.solarTerm = gAlmanacCache.solarTerm;
+    data.festival = gAlmanacCache.festival;
+    data.nextSpecialMonth = gAlmanacCache.nextSpecialMonth;
+    data.nextSpecialDay = gAlmanacCache.nextSpecialDay;
+    data.nextSpecialTerm = gAlmanacCache.nextSpecialTerm;
+    data.nextSpecialFestival = gAlmanacCache.nextSpecialFestival;
+    data.secondSpecialMonth = gAlmanacCache.secondSpecialMonth;
+    data.secondSpecialDay = gAlmanacCache.secondSpecialDay;
+    data.secondSpecialTerm = gAlmanacCache.secondSpecialTerm;
+    data.secondSpecialFestival = gAlmanacCache.secondSpecialFestival;
+    return data;
+  }
 
   AlmanacProvider provider;
   AlmanacDayData almanac{};
@@ -542,9 +584,10 @@ CalendarData makeCalendarData(const std::tm& localTime) {
     data.festival = lookupLunarFestival(almanac.lunarDate);
   }
 
-  // 向后查找下一个节气或节日（最多查 90 天）
+  // 向后查找下两个节气或节日（最多查 180 天）
   std::tm searchTm = localTime;
-  for (int offset = 1; offset <= 90; ++offset) {
+  bool foundFirst = false;
+  for (int offset = 1; offset <= 180; ++offset) {
     searchTm.tm_mday += 1;
     searchTm.tm_hour = 12;
     std::mktime(&searchTm);
@@ -556,13 +599,37 @@ CalendarData makeCalendarData(const std::tm& localTime) {
 
     const std::string nextFestival = lookupLunarFestival(nextAlmanac.lunarDate);
     if (!nextAlmanac.solarTerm.empty() || !nextFestival.empty()) {
-      data.nextSpecialMonth = searchTm.tm_mon + 1;
-      data.nextSpecialDay = searchTm.tm_mday;
-      data.nextSpecialTerm = nextAlmanac.solarTerm;
-      data.nextSpecialFestival = nextFestival;
-      break;
+      if (!foundFirst) {
+        data.nextSpecialMonth = searchTm.tm_mon + 1;
+        data.nextSpecialDay = searchTm.tm_mday;
+        data.nextSpecialTerm = nextAlmanac.solarTerm;
+        data.nextSpecialFestival = nextFestival;
+        foundFirst = true;
+      } else {
+        data.secondSpecialMonth = searchTm.tm_mon + 1;
+        data.secondSpecialDay = searchTm.tm_mday;
+        data.secondSpecialTerm = nextAlmanac.solarTerm;
+        data.secondSpecialFestival = nextFestival;
+        break;
+      }
     }
   }
+
+  // 写入缓存
+  gAlmanacCache.year = data.year;
+  gAlmanacCache.month = data.month;
+  gAlmanacCache.day = data.day;
+  gAlmanacCache.lunarDate = data.lunarDate;
+  gAlmanacCache.solarTerm = data.solarTerm;
+  gAlmanacCache.festival = data.festival;
+  gAlmanacCache.nextSpecialMonth = data.nextSpecialMonth;
+  gAlmanacCache.nextSpecialDay = data.nextSpecialDay;
+  gAlmanacCache.nextSpecialTerm = data.nextSpecialTerm;
+  gAlmanacCache.nextSpecialFestival = data.nextSpecialFestival;
+  gAlmanacCache.secondSpecialMonth = data.secondSpecialMonth;
+  gAlmanacCache.secondSpecialDay = data.secondSpecialDay;
+  gAlmanacCache.secondSpecialTerm = data.secondSpecialTerm;
+  gAlmanacCache.secondSpecialFestival = data.secondSpecialFestival;
 
   return data;
 }
@@ -831,7 +898,7 @@ void HomeRenderer::renderCalendar(const CalendarData& data) {
   if (canvas.loadFont(generated::kDeviceFontVlw)) {
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
 
-    std::string leftText = std::to_string(data.month) + "月" + std::to_string(data.day) + "日";
+    std::string leftText = std::to_string(data.todayMonth) + "月" + std::to_string(data.todayDay) + "日";
     if (!data.lunarDate.empty()) {
       leftText += " 农历" + data.lunarDate;
     }
@@ -863,6 +930,23 @@ void HomeRenderer::renderCalendar(const CalendarData& data) {
       }
       canvas.setTextDatum(textdatum_t::top_left);
       canvas.drawString(nextLine.c_str(), sepLeftX, infoY + 22);
+    }
+
+    // 第三行：下下一个节气或节日
+    if (data.secondSpecialMonth > 0) {
+      std::string secondLine = std::to_string(data.secondSpecialMonth) + "月" +
+                               std::to_string(data.secondSpecialDay) + "日";
+      if (!data.secondSpecialTerm.empty()) {
+        secondLine += data.secondSpecialTerm;
+      }
+      if (!data.secondSpecialFestival.empty()) {
+        if (!data.secondSpecialTerm.empty()) {
+          secondLine += "、";
+        }
+        secondLine += data.secondSpecialFestival;
+      }
+      canvas.setTextDatum(textdatum_t::top_left);
+      canvas.drawString(secondLine.c_str(), sepLeftX, infoY + 44);
     }
   }
 
