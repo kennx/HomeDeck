@@ -9,9 +9,9 @@
 #include <esp_sleep.h>
 #include <time.h>
 
-#ifndef UNIT_TEST
 #include <Adafruit_NeoPixel.h>
 #include <M5PM1.h>
+#ifndef UNIT_TEST
 #include <driver/gpio.h>
 #include <esp_rom_gpio.h>
 #include <esp_attr.h>
@@ -79,6 +79,7 @@ void i2cBusRecovery() {
   gpio_reset_pin(kSclPin);
   gpio_reset_pin(kSdaPin);
 }
+#endif
 
 constexpr uint8_t kRgbLedPin = 21;
 constexpr uint8_t kRgbLedCount = 2;
@@ -87,6 +88,22 @@ M5PM1 gPm1;
 Adafruit_NeoPixel gPixels(kRgbLedCount, kRgbLedPin, NEO_GRB + NEO_KHZ800);
 bool gPm1Ready = false;
 
+void clearRgbLedPixels() {
+  gPixels.clear();
+  gPixels.show();
+}
+
+void disableRgbLedPower() {
+  if (gPm1Ready) {
+    gPm1.setLdoEnable(false);
+  }
+}
+
+void shutdownRgbLedForSleep() {
+  clearRgbLedPixels();
+  disableRgbLedPower();
+}
+
 void initRgbLed() {
   m5pm1_err_t err = gPm1.begin(&M5.In_I2C, M5PM1_DEFAULT_ADDR, M5PM1_I2C_FREQ_100K);
   gPm1Ready = (err == M5PM1_OK);
@@ -94,15 +111,16 @@ void initRgbLed() {
     gPm1.setLdoEnable(true);
   }
   gPixels.begin();
-  gPixels.clear();
-  gPixels.show();
+  clearRgbLedPixels();
 }
 
-void turnOffRgbLed() {
-  gPixels.clear();
-  gPixels.show();
+void prepareEpdAfterWakeup() {
+  M5.Display.setEpdMode(epd_mode_t::epd_quality);
+  M5.Display.wakeup();
+  M5.Display.clear(TFT_WHITE);
+  M5.Display.waitDisplay();
+  M5.Display.setEpdMode(epd_mode_t::epd_fast);
 }
-#endif
 
 ConfigStore gConfigStore;
 HomeRenderer gHomeRenderer;
@@ -317,12 +335,22 @@ bool syncNtpForTest(
 bool writeRtcUtcForTest(time_t unixTime) {
   return writeRtcUtc(unixTime);
 }
+
+void prepareEpdAfterWakeupForTest() {
+  prepareEpdAfterWakeup();
+}
+
+void initRgbLedForTest() {
+  initRgbLed();
+}
+
+void shutdownRgbLedForSleepForTest() {
+  shutdownRgbLedForSleep();
+}
 #endif
 
 void enterHomeDeepSleep(const HomeSleepRequest& request) {
-#ifndef UNIT_TEST
-  turnOffRgbLed();
-#endif
+  shutdownRgbLedForSleep();
   const auto wakeupGpio = static_cast<gpio_num_t>(request.wakeupGpio);
   pinMode(static_cast<std::uint8_t>(request.wakeupGpio), INPUT_PULLUP);
   if (esp_sleep_enable_timer_wakeup(request.timerWakeupUs) != ESP_OK) {
@@ -431,19 +459,8 @@ void appSetup() {
   cfg.clear_display = false;
   M5.begin(cfg);
   M5.Display.setRotation(0);
-#ifndef UNIT_TEST
-  // 上电启动或从 deep sleep 唤醒时，先用 epd_quality 做完整刷新，
-  // 清除 E-Ink 残影或断电导致的像素电荷异常
-  M5.Display.setEpdMode(epd_mode_t::epd_quality);
-#endif
-  M5.Display.wakeup();
-#ifndef UNIT_TEST
-  // 完整刷新完成后切回 fast 模式，保证后续刷新速度
-  M5.Display.setEpdMode(epd_mode_t::epd_fast);
-#endif
-#ifndef UNIT_TEST
+  prepareEpdAfterWakeup();
   initRgbLed();
-#endif
   gConfigStore.begin();
   gTimeService = std::make_unique<TimeService>(makeTimeDeps());
   gBootController = std::make_unique<BootController>(makeBootDeps());

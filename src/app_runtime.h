@@ -16,6 +16,9 @@ bool syncNtpForTest(
     const std::string& ntpServer,
     time_t* syncedUnix);
 bool writeRtcUtcForTest(time_t unixTime);
+void prepareEpdAfterWakeupForTest();
+void initRgbLedForTest();
+void shutdownRgbLedForSleepForTest();
 #endif
 
 }  // namespace homedeck

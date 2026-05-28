@@ -15,6 +15,13 @@
 constexpr std::uint32_t TFT_BLACK = 0x00000000u;
 constexpr std::uint32_t TFT_WHITE = 0x00FFFFFFu;
 
+enum class epd_mode_t {
+  epd_quality = 0,
+  epd_text = 1,
+  epd_fast = 2,
+  epd_fastest = 3,
+};
+
 namespace fonts {
 inline const int efontCN_14 = 0;
 }  // namespace fonts
@@ -275,6 +282,19 @@ enum class textdatum_t {
 };
 
 struct FakeDisplay {
+  struct FakeEpdEvent {
+    enum class Type {
+      SetMode,
+      Wakeup,
+      Clear,
+      WaitDisplay,
+    };
+
+    Type type = Type::Wakeup;
+    epd_mode_t mode = epd_mode_t::epd_fast;
+    std::uint32_t color = 0;
+  };
+
   int rotation = 0;
   int cursorX = 0;
   int cursorY = 0;
@@ -297,6 +317,10 @@ struct FakeDisplay {
   int waitDisplayCount = 0;
   int sleepCount = 0;
   int wakeupCount = 0;
+  int clearCount = 0;
+  std::vector<std::uint32_t> clearColors;
+  std::vector<epd_mode_t> epdModes;
+  std::vector<FakeEpdEvent> epdEvents;
 
   void sleep() {
     ++sleepCount;
@@ -304,6 +328,14 @@ struct FakeDisplay {
 
   void wakeup() {
     ++wakeupCount;
+    epdEvents.push_back({FakeEpdEvent::Type::Wakeup, epd_mode_t::epd_fast, 0});
+  }
+
+  void clear(std::uint32_t color) {
+    ++clearCount;
+    clearColors.push_back(color);
+    fillScreenColor = color;
+    epdEvents.push_back({FakeEpdEvent::Type::Clear, epd_mode_t::epd_fast, color});
   }
 
   static int lineHeightFor(FakeFontKind kind) {
@@ -504,6 +536,7 @@ struct FakeDisplay {
 
   void waitDisplay() {
     ++waitDisplayCount;
+    epdEvents.push_back({FakeEpdEvent::Type::WaitDisplay, epd_mode_t::epd_fast, 0});
   }
 
   void setTextDatum(textdatum_t value) {
@@ -517,7 +550,9 @@ struct FakeDisplay {
         {x, y, textSize, fontKind, text != nullptr ? text : "", textColor, textBackground, static_cast<int>(textDatum)});
   }
 
-  void setEpdMode(int) {
+  void setEpdMode(epd_mode_t mode) {
+    epdModes.push_back(mode);
+    epdEvents.push_back({FakeEpdEvent::Type::SetMode, mode, 0});
   }
 };
 
