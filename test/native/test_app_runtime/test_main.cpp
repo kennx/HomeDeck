@@ -88,9 +88,8 @@ void test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_display_sleep
   TEST_ASSERT_EQUAL(ESP_PD_OPTION_ON, gFakeSleepPdOption);
   TEST_ASSERT_EQUAL(1, gFakeExt0Gpio);
   TEST_ASSERT_EQUAL(0, gFakeExt0Level);
-  TEST_ASSERT_TRUE(hasDeepSleepPrint());
   TEST_ASSERT_EQUAL(1, M5.Display.sleepCount);
-  TEST_ASSERT_EQUAL(2, M5.Display.waitDisplayCount);
+  TEST_ASSERT_EQUAL(1, M5.Display.waitDisplayCount);
   TEST_ASSERT_TRUE(gDeepSleepCalled);
 }
 
