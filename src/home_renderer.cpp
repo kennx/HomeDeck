@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <ctime>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -533,20 +534,30 @@ struct AlmanacCache {
   int year = 0;
   int month = 0;
   int day = 0;
-  std::string lunarDate;
-  std::string solarTerm;
-  std::string festival;
+  char lunarDate[32];
+  char solarTerm[32];
+  char festival[32];
   int nextSpecialMonth = 0;
   int nextSpecialDay = 0;
-  std::string nextSpecialTerm;
-  std::string nextSpecialFestival;
+  char nextSpecialTerm[32];
+  char nextSpecialFestival[32];
   int secondSpecialMonth = 0;
   int secondSpecialDay = 0;
-  std::string secondSpecialTerm;
-  std::string secondSpecialFestival;
+  char secondSpecialTerm[32];
+  char secondSpecialFestival[32];
 };
 
+void setAlmanacCacheString(char* dest, std::size_t size, const std::string& src) {
+  const std::size_t len = std::min(size - 1, src.size());
+  std::memcpy(dest, src.c_str(), len);
+  dest[len] = '\0';
+}
+
+#ifdef UNIT_TEST
 AlmanacCache gAlmanacCache;
+#else
+RTC_DATA_ATTR AlmanacCache gAlmanacCache;
+#endif
 
 }  // namespace
 
@@ -619,17 +630,17 @@ CalendarData makeCalendarData(const std::tm& localTime) {
   gAlmanacCache.year = data.year;
   gAlmanacCache.month = data.month;
   gAlmanacCache.day = data.day;
-  gAlmanacCache.lunarDate = data.lunarDate;
-  gAlmanacCache.solarTerm = data.solarTerm;
-  gAlmanacCache.festival = data.festival;
+  setAlmanacCacheString(gAlmanacCache.lunarDate, sizeof(gAlmanacCache.lunarDate), data.lunarDate);
+  setAlmanacCacheString(gAlmanacCache.solarTerm, sizeof(gAlmanacCache.solarTerm), data.solarTerm);
+  setAlmanacCacheString(gAlmanacCache.festival, sizeof(gAlmanacCache.festival), data.festival);
   gAlmanacCache.nextSpecialMonth = data.nextSpecialMonth;
   gAlmanacCache.nextSpecialDay = data.nextSpecialDay;
-  gAlmanacCache.nextSpecialTerm = data.nextSpecialTerm;
-  gAlmanacCache.nextSpecialFestival = data.nextSpecialFestival;
+  setAlmanacCacheString(gAlmanacCache.nextSpecialTerm, sizeof(gAlmanacCache.nextSpecialTerm), data.nextSpecialTerm);
+  setAlmanacCacheString(gAlmanacCache.nextSpecialFestival, sizeof(gAlmanacCache.nextSpecialFestival), data.nextSpecialFestival);
   gAlmanacCache.secondSpecialMonth = data.secondSpecialMonth;
   gAlmanacCache.secondSpecialDay = data.secondSpecialDay;
-  gAlmanacCache.secondSpecialTerm = data.secondSpecialTerm;
-  gAlmanacCache.secondSpecialFestival = data.secondSpecialFestival;
+  setAlmanacCacheString(gAlmanacCache.secondSpecialTerm, sizeof(gAlmanacCache.secondSpecialTerm), data.secondSpecialTerm);
+  setAlmanacCacheString(gAlmanacCache.secondSpecialFestival, sizeof(gAlmanacCache.secondSpecialFestival), data.secondSpecialFestival);
 
   return data;
 }

@@ -122,6 +122,13 @@ void prepareEpdAfterWakeup() {
   M5.Display.setEpdMode(epd_mode_t::epd_fast);
 }
 
+#ifndef UNIT_TEST
+void prepareEpdAfterDeepSleep() {
+  M5.Display.setEpdMode(epd_mode_t::epd_fast);
+  M5.Display.wakeup();
+}
+#endif
+
 ConfigStore gConfigStore;
 HomeRenderer gHomeRenderer;
 ConfigPortal gConfigPortal;
@@ -459,7 +466,15 @@ void appSetup() {
   cfg.clear_display = false;
   M5.begin(cfg);
   M5.Display.setRotation(0);
+#ifndef UNIT_TEST
+  if (esp_reset_reason() == ESP_RST_DEEPSLEEP) {
+    prepareEpdAfterDeepSleep();
+  } else {
+    prepareEpdAfterWakeup();
+  }
+#else
   prepareEpdAfterWakeup();
+#endif
   initRgbLed();
   gConfigStore.begin();
   gTimeService = std::make_unique<TimeService>(makeTimeDeps());
