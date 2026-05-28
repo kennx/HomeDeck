@@ -465,6 +465,63 @@ void test_day_click_ignored_in_calendar() {
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.almanacOffsets.size()));
 }
 
+void test_double_click_resets_to_today_in_almanac() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = false;
+
+  f.almanacOffsets.clear();
+  f.calendarButtonClickCount = 2;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.almanacOffsets.size()));
+  TEST_ASSERT_EQUAL(0, f.almanacOffsets[0]);
+}
+
+void test_continuous_prev_day_clicks() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = true;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(3, static_cast<int>(f.almanacOffsets.size()));
+  TEST_ASSERT_EQUAL(-1, f.almanacOffsets[0]);
+  TEST_ASSERT_EQUAL(-2, f.almanacOffsets[1]);
+  TEST_ASSERT_EQUAL(-3, f.almanacOffsets[2]);
+}
+
+void test_almanac_day_bounds() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  for (int i = 0; i < 3651; ++i) {
+    f.prevMonthClicked = true;
+    controller.update();
+  }
+
+  TEST_ASSERT_EQUAL(3650, static_cast<int>(f.almanacOffsets.size()));
+  TEST_ASSERT_EQUAL(-3650, f.almanacOffsets.back());
+
+  f.almanacOffsets.clear();
+  f.prevMonthClicked = true;
+  controller.update();
+  TEST_ASSERT_EQUAL(0, static_cast<int>(f.almanacOffsets.size()));
+}
+
 void test_continuous_prev_month_clicks() {
   Fixture f{};
   f.configured = true;
