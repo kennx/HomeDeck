@@ -29,6 +29,7 @@ struct Fixture {
   std::time_t currentUnix = 1704110400;
   std::vector<homedeck::HomeSleepRequest> sleepRequests;
   std::vector<int> calendarOffsets;
+  std::vector<int> almanacOffsets;
 
   homedeck::BootControllerDeps deps() {
     homedeck::BootControllerDeps deps{};
@@ -58,6 +59,9 @@ struct Fixture {
     deps.renderCalendar = [this]() { calendarRendered = true; };
     deps.renderCalendarWithOffset = [this](int offset) {
       calendarOffsets.push_back(offset);
+    };
+    deps.renderAlmanacWithOffset = [this](int offset) {
+      almanacOffsets.push_back(offset);
     };
     deps.getCalendarButtonClickCount = [this]() { return calendarButtonClickCount; };
     deps.wasPrevMonthClicked = [this]() { return prevMonthClicked; };
