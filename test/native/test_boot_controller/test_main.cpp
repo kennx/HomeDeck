@@ -594,6 +594,45 @@ void test_enter_system_mode_resets_month_offset() {
   TEST_ASSERT_EQUAL(-1, f.calendarOffsets[0]);
 }
 
+void test_day_click_resets_sleep_timer() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.now = 240000;
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = false;
+
+  f.now = 480000;
+  controller.update();
+  TEST_ASSERT_EQUAL(0, static_cast<int>(f.sleepRequests.size()));
+
+  f.now = 780000;
+  controller.update();
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
+}
+
+void test_enter_system_mode_resets_day_offset() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+
+  f.prevMonthClicked = true;
+  controller.update();
+  f.prevMonthClicked = false;
+
+  controller.begin();
+  f.almanacOffsets.clear();
+  f.prevMonthClicked = true;
+  controller.update();
+
+  TEST_ASSERT_EQUAL(1, static_cast<int>(f.almanacOffsets.size()));
+  TEST_ASSERT_EQUAL(-1, f.almanacOffsets[0]);
+}
+
 void test_calendar_button_click_switches_view_and_resets_sleep_timer() {
   Fixture f{};
   f.configured = true;
@@ -666,5 +705,13 @@ int main(int, char**) {
   RUN_TEST(test_enter_system_mode_resets_month_offset);
   RUN_TEST(test_calendar_button_click_switches_view_and_resets_sleep_timer);
   RUN_TEST(test_second_calendar_click_switches_back_to_almanac);
+  RUN_TEST(test_prev_day_click_in_almanac);
+  RUN_TEST(test_next_day_click_in_almanac);
+  RUN_TEST(test_day_click_ignored_in_calendar);
+  RUN_TEST(test_double_click_resets_to_today_in_almanac);
+  RUN_TEST(test_continuous_prev_day_clicks);
+  RUN_TEST(test_almanac_day_bounds);
+  RUN_TEST(test_day_click_resets_sleep_timer);
+  RUN_TEST(test_enter_system_mode_resets_day_offset);
   return UNITY_END();
 }
