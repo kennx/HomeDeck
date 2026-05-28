@@ -72,10 +72,17 @@ void BootController::update() {
       lastActivityMs_ = now;
     }
   } else if (btnCClicks >= 2) {
-    if (viewManager_ && viewManager_->currentView() == SystemView::Calendar) {
-      calendarMonthOffset_ = 0;
-      if (deps_.renderCalendarWithOffset) {
-        deps_.renderCalendarWithOffset(0);
+    if (viewManager_) {
+      if (viewManager_->currentView() == SystemView::Calendar) {
+        calendarMonthOffset_ = 0;
+        if (deps_.renderCalendarWithOffset) {
+          deps_.renderCalendarWithOffset(0);
+        }
+      } else if (viewManager_->currentView() == SystemView::Almanac) {
+        almanacDayOffset_ = 0;
+        if (deps_.renderAlmanacWithOffset) {
+          deps_.renderAlmanacWithOffset(0);
+        }
       }
       lastActivityMs_ = now;
     }
@@ -97,6 +104,26 @@ void BootController::update() {
     }
     if (calendarUpdated && deps_.renderCalendarWithOffset) {
       deps_.renderCalendarWithOffset(calendarMonthOffset_);
+      lastActivityMs_ = now;
+    }
+  }
+
+  // 3. 检测黄历翻页（仅在 Almanac 视图）
+  if (viewManager_ && viewManager_->currentView() == SystemView::Almanac) {
+    bool almanacUpdated = false;
+    if (deps_.wasPrevMonthClicked && deps_.wasPrevMonthClicked()) {
+      if (almanacDayOffset_ > kAlmanacDayOffsetMin) {
+        almanacDayOffset_--;
+        almanacUpdated = true;
+      }
+    } else if (deps_.wasNextMonthClicked && deps_.wasNextMonthClicked()) {
+      if (almanacDayOffset_ < kAlmanacDayOffsetMax) {
+        almanacDayOffset_++;
+        almanacUpdated = true;
+      }
+    }
+    if (almanacUpdated && deps_.renderAlmanacWithOffset) {
+      deps_.renderAlmanacWithOffset(almanacDayOffset_);
       lastActivityMs_ = now;
     }
   }
@@ -126,6 +153,7 @@ void BootController::enterSystemMode() {
   setupShortcutConsumed_ = false;
   homeSleepRequested_ = false;
   calendarMonthOffset_ = 0;
+  almanacDayOffset_ = 0;
 
   if (deps_.restoreSystemTimeFromRtc) {
     deps_.restoreSystemTimeFromRtc();
