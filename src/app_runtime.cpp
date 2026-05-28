@@ -10,6 +10,8 @@
 #include <time.h>
 
 #ifndef UNIT_TEST
+#include <Adafruit_NeoPixel.h>
+#include <M5PM1.h>
 #include <driver/gpio.h>
 #include <esp_rom_gpio.h>
 #include <esp_attr.h>
@@ -76,6 +78,29 @@ void i2cBusRecovery() {
 
   gpio_reset_pin(kSclPin);
   gpio_reset_pin(kSdaPin);
+}
+
+constexpr uint8_t kRgbLedPin = 21;
+constexpr uint8_t kRgbLedCount = 2;
+
+M5PM1 gPm1;
+Adafruit_NeoPixel gPixels(kRgbLedCount, kRgbLedPin, NEO_GRB + NEO_KHZ800);
+bool gPm1Ready = false;
+
+void initRgbLed() {
+  m5pm1_err_t err = gPm1.begin(&M5.In_I2C, M5PM1_DEFAULT_ADDR, M5PM1_I2C_FREQ_100K);
+  gPm1Ready = (err == M5PM1_OK);
+  if (gPm1Ready) {
+    gPm1.setLdoEnable(true);
+  }
+  gPixels.begin();
+  gPixels.clear();
+  gPixels.show();
+}
+
+void turnOffRgbLed() {
+  gPixels.clear();
+  gPixels.show();
 }
 #endif
 
@@ -294,6 +319,9 @@ bool writeRtcUtcForTest(time_t unixTime) {
 #endif
 
 void enterHomeDeepSleep(const HomeSleepRequest& request) {
+#ifndef UNIT_TEST
+  turnOffRgbLed();
+#endif
   const auto wakeupGpio = static_cast<gpio_num_t>(request.wakeupGpio);
   pinMode(static_cast<std::uint8_t>(request.wakeupGpio), INPUT_PULLUP);
   if (esp_sleep_enable_timer_wakeup(request.timerWakeupUs) != ESP_OK) {
@@ -403,9 +431,18 @@ void appSetup() {
   M5.begin(cfg);
   M5.Display.setRotation(0);
 #ifndef UNIT_TEST
-  M5.Display.setEpdMode(epd_mode_t::epd_fast);
+  // 上电启动或从 deep sleep 唤醒时，先用 epd_quality 做完整刷新，
+  // 清除 E-Ink 残影或断电导致的像素电荷异常
+  M5.Display.setEpdMode(epd_mode_t::epd_quality);
 #endif
   M5.Display.wakeup();
+#ifndef UNIT_TEST
+  // 完整刷新完成后切回 fast 模式，保证后续刷新速度
+  M5.Display.setEpdMode(epd_mode_t::epd_fast);
+#endif
+#ifndef UNIT_TEST
+  initRgbLed();
+#endif
   gConfigStore.begin();
   gTimeService = std::make_unique<TimeService>(makeTimeDeps());
   gBootController = std::make_unique<BootController>(makeBootDeps());
