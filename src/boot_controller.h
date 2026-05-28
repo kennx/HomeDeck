@@ -44,6 +44,7 @@ struct BootControllerDeps {
   std::function<unsigned long()> millis;
   std::function<void()> restart;
   std::function<std::time_t()> currentTime;
+  std::function<void(SystemView)> preSleepRender;
   std::function<void(const HomeSleepRequest&)> enterDeepSleep;
 };
 

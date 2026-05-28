@@ -177,6 +177,11 @@ void BootController::updateHomeSleep(unsigned long now) {
   }
 
   homeSleepRequested_ = true;
+  calendarMonthOffset_ = 0;
+  almanacDayOffset_ = 0;
+  if (deps_.preSleepRender) {
+    deps_.preSleepRender(currentView());
+  }
   if (deps_.enterDeepSleep) {
     deps_.enterDeepSleep(makeHomeSleepRequest());
   }
