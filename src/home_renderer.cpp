@@ -570,7 +570,7 @@ CalendarData makeCalendarData(const std::tm& localTime) {
   data.todayMonth = data.month;
   data.todayDay = data.day;
 
-  // 缓存命中：同一天直接复用，避免重复 180 次 Almanac 查询
+  // 缓存命中：同一天直接复用，避免重复 Almanac 查询
   if (gAlmanacCache.year == data.year && gAlmanacCache.month == data.month &&
       gAlmanacCache.day == data.day) {
     data.lunarDate = gAlmanacCache.lunarDate;
@@ -589,10 +589,11 @@ CalendarData makeCalendarData(const std::tm& localTime) {
 
   AlmanacProvider provider;
   std::vector<AlmanacLookupDate> dates;
-  dates.reserve(181);
+  dates.reserve(36);
   dates.push_back({data.year, data.month, data.day});
   std::tm searchTm = localTime;
-  for (int offset = 1; offset <= 180; ++offset) {
+  // 节气最大间隔 ~16 天，35 天足够找到两个特殊日（节气/节日）
+  for (int offset = 1; offset <= 35; ++offset) {
     searchTm.tm_mday += 1;
     searchTm.tm_hour = 12;
     std::mktime(&searchTm);
