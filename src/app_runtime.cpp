@@ -28,6 +28,7 @@
 #include "config_store.h"
 #include "almanac_view.h"
 #include "calendar_view.h"
+#include "countdown_view.h"
 #include "home_renderer.h"
 #include "sht40_reader.h"
 #include "time_service.h"
@@ -133,6 +134,7 @@ ConfigStore gConfigStore;
 HomeRenderer gHomeRenderer;
 AlmanacView gAlmanacView;
 CalendarView gCalendarView;
+CountdownView gCountdownView;
 ConfigPortal gConfigPortal;
 std::unique_ptr<TimeService> gTimeService;
 std::unique_ptr<BootController> gBootController;
@@ -345,7 +347,7 @@ BootControllerDeps makeBootDeps() {
   deps.renderAlmanac = renderHomeWithEnvironment;
   deps.renderCalendar = renderCalendarWithEnvironment;
   deps.renderCountdown = []() {
-    // TODO: 后续步骤替换为 CountdownView
+    gCountdownView.render();
   };
   deps.renderCalendarWithOffset = renderCalendarWithOffset;
   deps.renderAlmanacWithOffset = renderAlmanacWithOffset;
@@ -369,6 +371,8 @@ BootControllerDeps makeBootDeps() {
       gAlmanacView.renderSleep();
     } else if (view == homedeck::SystemView::Calendar) {
       gCalendarView.renderSleep();
+    } else if (view == homedeck::SystemView::Countdown) {
+      gCountdownView.renderSleep();
     }
   };
   deps.enterDeepSleep = enterHomeDeepSleep;
