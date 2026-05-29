@@ -90,11 +90,13 @@ void drawQrCode(M5Canvas& canvas, const std::string& text, int left, int top, in
 }  // namespace
 
 void HomeRenderer::render(const HomeCalendarData& data) {
+  // AlmanacView 为无状态类，临时对象仅为向后兼容保留的委托包装
   AlmanacView view;
   view.render(data);
 }
 
 void HomeRenderer::renderCalendar(const CalendarData& data) {
+  // CalendarView 为无状态类，临时对象仅为向后兼容保留的委托包装
   CalendarView view;
   view.render(data);
 }
