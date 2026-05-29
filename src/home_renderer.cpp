@@ -15,6 +15,7 @@
 
 #include "almanac_provider.h"
 #include "generated/device_font_vlw.h"
+#include "render_context.h"
 #include "sht40_reader.h"
 
 namespace homedeck {
@@ -84,28 +85,6 @@ void drawLogo(M5Canvas& canvas, int top) {
       1.0f,
       datum_t::top_left);
   LittleFS.end();
-}
-
-void prepareScreen(M5Canvas& canvas) {
-  canvas.fillSprite(TFT_WHITE);
-  canvas.setTextColor(TFT_BLACK, TFT_WHITE);
-  canvas.setTextDatum(textdatum_t::middle_center);
-}
-
-void pushScreen(M5Canvas& canvas) {
-  canvas.pushSprite(0, 0);
-  M5.Display.waitDisplay();
-}
-
-M5Canvas& sprite() {
-  static M5Canvas canvas(&M5.Display);
-  static bool ready = false;
-  if (!ready) {
-    canvas.setColorDepth(16);
-    canvas.createSprite(M5.Display.width(), M5.Display.height());
-    ready = true;
-  }
-  return canvas;
 }
 
 void loadConfigPortalFont(M5Canvas& canvas) {
