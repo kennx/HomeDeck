@@ -358,7 +358,8 @@ void applySht40ToCalendar(CalendarData& data) {
 
 CalendarData makeCurrentCalendarData() {
   const std::time_t now = std::time(nullptr);
-  const std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
+  std::tm buf{};
+  const std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   if (local == nullptr) {
     std::tm fallback = fallbackLocalTime();
     return makeCalendarData(fallback);
@@ -370,7 +371,8 @@ CalendarData makeCurrentCalendarData() {
 
 void CalendarView::render() {
   std::time_t now = time(nullptr);
-  std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
+  std::tm buf{};
+  std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   if (local == nullptr) {
     std::tm fallback = fallbackLocalTime();
     CalendarData data = makeCalendarData(fallback);
@@ -411,7 +413,8 @@ void CalendarView::renderWithOffset(int monthOffset) {
 
 void CalendarView::renderSleep() {
   std::time_t now = time(nullptr);
-  std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
+  std::tm buf{};
+  std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   std::tm fallback = fallbackLocalTime();
   std::tm* pLocal = local != nullptr ? local : &fallback;
 

@@ -465,7 +465,8 @@ HomeCalendarData makeHomeCalendarData(const std::tm& localTime) {
 
 HomeCalendarData makeCurrentHomeCalendarData() {
   const std::time_t now = std::time(nullptr);
-  const std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
+  std::tm buf{};
+  const std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   return makeHomeCalendarData(local != nullptr ? *local : fallbackLocalTime());
 }
 
@@ -563,7 +564,8 @@ void AlmanacView::render(const HomeCalendarData& data) {
 
 void AlmanacView::render() {
   std::time_t now = time(nullptr);
-  std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
+  std::tm buf{};
+  std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   std::tm fallback = fallbackLocalTime();
   std::tm targetTm = local != nullptr ? *local : fallback;
 
@@ -593,7 +595,8 @@ void AlmanacView::renderWithOffset(int dayOffset) {
 
 void AlmanacView::renderSleep() {
   std::time_t now = time(nullptr);
-  std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
+  std::tm buf{};
+  std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   std::tm fallback = fallbackLocalTime();
   std::tm targetTm = local != nullptr ? *local : fallback;
 
