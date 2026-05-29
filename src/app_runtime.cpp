@@ -26,6 +26,8 @@
 #include "boot_controller.h"
 #include "config_portal.h"
 #include "config_store.h"
+#include "almanac_view.h"
+#include "calendar_view.h"
 #include "home_renderer.h"
 #include "sht40_reader.h"
 #include "time_service.h"
@@ -129,6 +131,8 @@ void prepareEpdAfterDeepSleep() {
 
 ConfigStore gConfigStore;
 HomeRenderer gHomeRenderer;
+AlmanacView gAlmanacView;
+CalendarView gCalendarView;
 ConfigPortal gConfigPortal;
 std::unique_ptr<TimeService> gTimeService;
 std::unique_ptr<BootController> gBootController;
@@ -243,88 +247,20 @@ std::string formatCurrentTimeHHMM() {
   return timeStr;
 }
 
-HomeCalendarData makeCurrentHomeCalendarDataWithEnvironment(const std::string& bottomCenterMessage = {}) {
-  HomeCalendarData data = makeCurrentHomeCalendarData();
-  const EnvironmentReading reading = readSht40Environment();
-  if (reading.ok) {
-    data.temperatureAvailable = true;
-    data.temperatureCelsius = reading.temperatureCelsius;
-    data.humidityAvailable = true;
-    data.humidityPercent = reading.humidityPercent;
-  }
-  data.bottomCenterMessage = bottomCenterMessage;
-  return data;
-}
-
 void renderHomeWithEnvironment() {
-  gHomeRenderer.render(makeCurrentHomeCalendarDataWithEnvironment(formatCurrentTimeHHMM()));
+  gAlmanacView.render();
 }
 
 void renderCalendarWithEnvironment() {
-  CalendarData data = makeCurrentCalendarData();
-  data.bottomCenterMessage = formatCurrentTimeHHMM();
-  gHomeRenderer.renderCalendar(data);
+  gCalendarView.render();
 }
 
 void renderCalendarWithOffset(int monthOffset) {
-  std::time_t now = time(nullptr);
-  std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
-  if (local == nullptr) {
-    gHomeRenderer.renderCalendar(makeCurrentCalendarData());
-    return;
-  }
-
-  int targetYear = local->tm_year + 1900;
-  int targetMonth = local->tm_mon + 1 + monthOffset;
-
-  while (targetMonth > 12) {
-    targetMonth -= 12;
-    targetYear++;
-  }
-  while (targetMonth < 1) {
-    targetMonth += 12;
-    targetYear--;
-  }
-
-  // 基于今天查询 Almanac（分割线信息行始终显示今天）
-  CalendarData data = homedeck::makeCalendarData(*local);
-  data.year = targetYear;
-  data.month = targetMonth;
-  data.day = (monthOffset == 0) ? local->tm_mday : 0;
-
-  applySht40ToCalendar(data);
-  data.bottomCenterMessage = formatCurrentTimeHHMM();
-  gHomeRenderer.renderCalendar(data);
+  gCalendarView.renderWithOffset(monthOffset);
 }
 
 void renderAlmanacWithOffset(int dayOffset) {
-  std::time_t now = time(nullptr);
-  std::tm* local = now > 0 ? std::localtime(&now) : nullptr;
-  if (local == nullptr) {
-    gHomeRenderer.render(makeCurrentHomeCalendarDataWithEnvironment());
-    return;
-  }
-
-  // 复制当前的 tm 结构体
-  std::tm targetTm = *local;
-  targetTm.tm_mday += dayOffset;
-
-  // 使用 mktime 规范化时间结构，自动处理跨天、跨月、跨年及夏令时转换
-  if (std::mktime(&targetTm) == -1) {
-    gHomeRenderer.render(makeCurrentHomeCalendarDataWithEnvironment());
-    return;
-  }
-
-  HomeCalendarData data = makeHomeCalendarData(targetTm);
-  const EnvironmentReading reading = readSht40Environment();
-  if (reading.ok) {
-    data.temperatureAvailable = true;
-    data.temperatureCelsius = reading.temperatureCelsius;
-    data.humidityAvailable = true;
-    data.humidityPercent = reading.humidityPercent;
-  }
-  data.bottomCenterMessage = formatCurrentTimeHHMM();
-  gHomeRenderer.render(data);
+  gAlmanacView.renderWithOffset(dayOffset);
 }
 
 }  // namespace
@@ -430,25 +366,9 @@ BootControllerDeps makeBootDeps() {
   deps.saveCurrentView = [](homedeck::SystemView view) { gRtcSavedView = view; };
   deps.preSleepRender = [](homedeck::SystemView view) {
     if (view == homedeck::SystemView::Almanac) {
-      HomeCalendarData data = makeCurrentHomeCalendarData();
-      data.temperatureAvailable = false;
-      data.humidityAvailable = false;
-      data.bottomCenterMessage = "--:--";
-      gHomeRenderer.render(data);
-    } else {
-      std::time_t now = time(nullptr);
-      std::tm* local = localtime(&now);
-      std::tm fallback{};
-      if (local == nullptr) {
-        fallback.tm_year = 70;
-        fallback.tm_mday = 1;
-        local = &fallback;
-      }
-      CalendarData data = makeCalendarData(*local);
-      data.temperatureAvailable = false;
-      data.humidityAvailable = false;
-      data.bottomCenterMessage = "--:--";
-      gHomeRenderer.renderCalendar(data);
+      gAlmanacView.renderSleep();
+    } else if (view == homedeck::SystemView::Calendar) {
+      gCalendarView.renderSleep();
     }
   };
   deps.enterDeepSleep = enterHomeDeepSleep;

@@ -739,6 +739,8 @@ void test_second_calendar_click_switches_back_to_almanac() {
   f.homeRendered = false;
   f.calendarButtonClickCount = 1;
   controller.update();
+  f.calendarButtonClickCount = 1;
+  controller.update();
   TEST_ASSERT_TRUE(f.homeRendered);
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
 }
@@ -757,6 +759,8 @@ void test_calendar_offset_resets_when_switching_away_and_back() {
   f.prevMonthClicked = false;
 
   f.calendarOffsets.clear();
+  f.calendarButtonClickCount = 1;
+  controller.update();
   f.calendarButtonClickCount = 1;
   controller.update();
   f.calendarButtonClickCount = 1;
@@ -781,6 +785,8 @@ void test_almanac_offset_resets_when_switching_away_and_back() {
   f.prevMonthClicked = false;
 
   f.almanacOffsets.clear();
+  f.calendarButtonClickCount = 1;
+  controller.update();
   f.calendarButtonClickCount = 1;
   controller.update();
   f.calendarButtonClickCount = 1;

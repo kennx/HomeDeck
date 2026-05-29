@@ -8,6 +8,8 @@
 #include <string>
 
 #include "../support/almanac_fixture.h"
+#include "almanac_view.h"
+#include "calendar_view.h"
 #include "home_renderer.h"
 
 namespace {
