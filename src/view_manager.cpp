@@ -15,6 +15,9 @@ void ViewManager::switchToNextView() {
       switchTo(SystemView::Calendar);
       break;
     case SystemView::Calendar:
+      switchTo(SystemView::Countdown);
+      break;
+    case SystemView::Countdown:
       switchTo(SystemView::Almanac);
       break;
   }
@@ -35,6 +38,11 @@ void ViewManager::switchTo(SystemView view) {
     case SystemView::Calendar:
       if (deps_.renderCalendar) {
         deps_.renderCalendar();
+      }
+      break;
+    case SystemView::Countdown:
+      if (deps_.renderCountdown) {
+        deps_.renderCountdown();
       }
       break;
   }

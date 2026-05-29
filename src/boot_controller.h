@@ -34,6 +34,7 @@ struct BootControllerDeps {
   std::function<void()> restoreSystemTimeFromRtc;
   std::function<void()> renderAlmanac;
   std::function<void()> renderCalendar;
+  std::function<void()> renderCountdown;
   std::function<void(int monthOffset)> renderCalendarWithOffset;
   std::function<void(int dayOffset)> renderAlmanacWithOffset;
   std::function<int()> getCalendarButtonClickCount;

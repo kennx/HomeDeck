@@ -408,6 +408,9 @@ BootControllerDeps makeBootDeps() {
   };
   deps.renderAlmanac = renderHomeWithEnvironment;
   deps.renderCalendar = renderCalendarWithEnvironment;
+  deps.renderCountdown = []() {
+    // TODO: 后续步骤替换为 CountdownView
+  };
   deps.renderCalendarWithOffset = renderCalendarWithOffset;
   deps.renderAlmanacWithOffset = renderAlmanacWithOffset;
   deps.getCalendarButtonClickCount = []() -> int {

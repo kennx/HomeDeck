@@ -170,6 +170,7 @@ void BootController::enterSystemMode() {
   ViewManagerDeps vmDeps{};
   vmDeps.renderAlmanac = deps_.renderAlmanac;
   vmDeps.renderCalendar = deps_.renderCalendar;
+  vmDeps.renderCountdown = deps_.renderCountdown;
   viewManager_ = std::make_unique<ViewManager>(std::move(vmDeps));
 
   SystemView initialView = deps_.loadSavedView ? deps_.loadSavedView() : SystemView::Almanac;

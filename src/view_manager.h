@@ -7,11 +7,13 @@ namespace homedeck {
 enum class SystemView {
   Almanac,
   Calendar,
+  Countdown,
 };
 
 struct ViewManagerDeps {
   std::function<void()> renderAlmanac;
   std::function<void()> renderCalendar;
+  std::function<void()> renderCountdown;
 };
 
 class ViewManager {
