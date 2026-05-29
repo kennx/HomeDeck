@@ -24,4 +24,15 @@ M5Canvas& sprite() {
   return canvas;
 }
 
+std::string formatCurrentTimeHHMM() {
+  std::time_t now = std::time(nullptr);
+  std::tm buf{};
+  std::tm* local = localtime_r(&now, &buf);
+  char timeStr[6] = {};
+  if (local != nullptr) {
+    std::snprintf(timeStr, sizeof(timeStr), "%02d:%02d", local->tm_hour, local->tm_min);
+  }
+  return std::string(timeStr);
+}
+
 }  // namespace homedeck

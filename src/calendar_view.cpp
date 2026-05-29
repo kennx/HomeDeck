@@ -86,16 +86,6 @@ std::tm fallbackLocalTime() {
   return local;
 }
 
-std::string formatCurrentTimeHHMM() {
-  time_t now = time(nullptr);
-  tm* local = localtime(&now);
-  char timeStr[6] = {};
-  if (local != nullptr) {
-    snprintf(timeStr, sizeof(timeStr), "%02d:%02d", local->tm_hour, local->tm_min);
-  }
-  return timeStr;
-}
-
 void drawCalendarEnvironmentReadings(M5Canvas& canvas, const CalendarData& data) {
   constexpr int kBottomInset = 12;
   constexpr int kLeftX = 12;

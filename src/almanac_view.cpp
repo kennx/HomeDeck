@@ -477,16 +477,6 @@ void resetAlmanacCacheForTest() {
 
 namespace {
 
-std::string formatCurrentTimeHHMM() {
-  time_t now = time(nullptr);
-  tm* local = localtime(&now);
-  char timeStr[6] = {};
-  if (local != nullptr) {
-    snprintf(timeStr, sizeof(timeStr), "%02d:%02d", local->tm_hour, local->tm_min);
-  }
-  return timeStr;
-}
-
 }  // namespace
 
 void AlmanacView::render(const HomeCalendarData& data) {
