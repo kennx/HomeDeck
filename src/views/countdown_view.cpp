@@ -15,6 +15,7 @@ namespace {
 
 constexpr int kThemeColor = TFT_BLACK;
 constexpr int kBgColor = TFT_WHITE;
+constexpr float kGlyphHeightRatio = 13.0f / 16.0f;
 
 int daysBetween(const std::tm& start, const std::tm& end) {
   std::tm s = start;
@@ -115,10 +116,8 @@ void CountdownView::render(const CountdownData& data) {
   const int centerX = canvas.width() / 2;
   const int centerY = canvas.height() / 2;
 
-  // 大日期字体实际渲染高度约为 pixelSize * 13/16（VLW glyph 分析得出 127px），
-  // 取一半作为文本垂直半高，确保上下各 12px 间距。
   constexpr int kDaysFontHalfHeight =
-      static_cast<int>(generated::kDeviceLargeDateFontPixelSize * 13 / 32);
+      static_cast<int>(generated::kDeviceLargeDateFontPixelSize * kGlyphHeightRatio / 2);
 
   // 第二行：大数字天数（先绘制，避免覆盖其他元素）
   if (canvas.loadFont(generated::kDeviceLargeDateFontVlw)) {

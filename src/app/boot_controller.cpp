@@ -91,8 +91,11 @@ void BootController::update() {
         if (deps_.renderAlmanacWithOffset) {
           deps_.renderAlmanacWithOffset(0);
         }
+      } else if (viewManager_->currentView() == SystemView::Countdown) {
+        if (deps_.renderCountdown) {
+          deps_.renderCountdown();
+        }
       }
-      // CountdownView 无偏移状态，双击无需重置
       lastActivityMs_ = now;
     }
   }
