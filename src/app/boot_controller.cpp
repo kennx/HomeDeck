@@ -68,12 +68,17 @@ void BootController::update() {
   const int btnCClicks = deps_.getCalendarButtonClickCount ? deps_.getCalendarButtonClickCount() : 0;
   if (btnCClicks == 1) {
     if (viewManager_) {
-      viewManager_->switchToNextView();
-      if (viewManager_->currentView() == SystemView::Calendar) {
-        calendarMonthOffset_ = 0;
-      } else {
-        almanacDayOffset_ = 0;
+      // 切换视图前重置所有 offset，确保每次进入视图都是初始状态
+      calendarMonthOffset_ = 0;
+      almanacDayOffset_ = 0;
+      if (deps_.resetCalendarView) {
+        deps_.resetCalendarView();
       }
+      if (deps_.resetAlmanacView) {
+        deps_.resetAlmanacView();
+      }
+
+      viewManager_->switchToNextView();
       if (deps_.saveCurrentView) {
         deps_.saveCurrentView(viewManager_->currentView());
       }
@@ -194,8 +199,17 @@ void BootController::updateHomeSleep(unsigned long now) {
   homeSleepRequested_ = true;
   calendarMonthOffset_ = 0;
   almanacDayOffset_ = 0;
+
+  // 进入 deep sleep 前重置当前视图的 offset，确保休眠画面显示初始状态
+  SystemView view = currentView();
+  if (view == SystemView::Calendar && deps_.resetCalendarView) {
+    deps_.resetCalendarView();
+  } else if (view == SystemView::Almanac && deps_.resetAlmanacView) {
+    deps_.resetAlmanacView();
+  }
+
   if (deps_.preSleepRender) {
-    deps_.preSleepRender(currentView());
+    deps_.preSleepRender(view);
   }
   if (deps_.enterDeepSleep) {
     deps_.enterDeepSleep(makeHomeSleepRequest());

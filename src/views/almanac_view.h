@@ -92,7 +92,8 @@ class AlmanacView {
   void renderSleep();
   void onButtonA();  // prev day
   void onButtonB();  // next day
-  void reset();      // reset offset
+  void reset();      // reset offset and render
+  void resetOffset(); // reset offset only, no render
 
  private:
   int dayOffset_ = 0;

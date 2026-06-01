@@ -42,7 +42,8 @@ class CalendarView {
   void renderSleep();
   void onButtonA();  // prev month
   void onButtonB();  // next month
-  void reset();      // reset offset
+  void reset();      // reset offset and render
+  void resetOffset(); // reset offset only, no render
 
  private:
   int monthOffset_ = 0;

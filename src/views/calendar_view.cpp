@@ -395,4 +395,8 @@ void CalendarView::reset() {
   render();
 }
 
+void CalendarView::resetOffset() {
+  monthOffset_ = 0;
+}
+
 }  // namespace homedeck

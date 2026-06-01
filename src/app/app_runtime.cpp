@@ -341,6 +341,8 @@ BootControllerDeps makeBootDeps() {
   };
   deps.renderCalendarWithOffset = renderCalendarWithOffset;
   deps.renderAlmanacWithOffset = renderAlmanacWithOffset;
+  deps.resetCalendarView = []() { gCalendarView.resetOffset(); };
+  deps.resetAlmanacView = []() { gAlmanacView.resetOffset(); };
   deps.getCalendarButtonClickCount = []() -> int {
     if (M5.BtnC.wasDecideClickCount()) {
       return static_cast<int>(M5.BtnC.getClickCount());

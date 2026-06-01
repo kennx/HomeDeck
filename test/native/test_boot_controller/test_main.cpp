@@ -32,6 +32,8 @@ struct Fixture {
   std::vector<int> almanacOffsets;
   std::vector<homedeck::SystemView> preSleepRenderViews;
   bool preSleepRenderCalled = false;
+  bool calendarViewReset = false;
+  bool almanacViewReset = false;
 
   homedeck::BootControllerDeps deps() {
     homedeck::BootControllerDeps deps{};
@@ -80,6 +82,8 @@ struct Fixture {
     deps.enterDeepSleep = [this](const homedeck::HomeSleepRequest& request) {
       sleepRequests.push_back(request);
     };
+    deps.resetCalendarView = [this]() { calendarViewReset = true; };
+    deps.resetAlmanacView = [this]() { almanacViewReset = true; };
     return deps;
   }
 };
@@ -341,6 +345,8 @@ void test_single_click_switches_view() {
 
   TEST_ASSERT_TRUE(f.calendarRendered);
   TEST_ASSERT_EQUAL(homedeck::SystemView::Calendar, controller.currentView());
+  TEST_ASSERT_TRUE(f.calendarViewReset);
+  TEST_ASSERT_TRUE(f.almanacViewReset);
 }
 
 void test_double_click_resets_to_today_in_calendar() {
@@ -407,6 +413,7 @@ void test_offsets_reset_before_deep_sleep() {
   TEST_ASSERT_TRUE(f.preSleepRenderCalled);
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.calendarOffsets.size()));
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.almanacOffsets.size()));
+  TEST_ASSERT_TRUE(f.calendarViewReset);
 }
 
 void test_preSleepRender_called_before_deep_sleep() {
@@ -422,6 +429,7 @@ void test_preSleepRender_called_before_deep_sleep() {
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.preSleepRenderViews.size()));
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, f.preSleepRenderViews[0]);
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.sleepRequests.size()));
+  TEST_ASSERT_TRUE(f.almanacViewReset);
 }
 
 void test_preSleepRender_receives_calendar_view() {
@@ -440,6 +448,7 @@ void test_preSleepRender_receives_calendar_view() {
   TEST_ASSERT_TRUE(f.preSleepRenderCalled);
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.preSleepRenderViews.size()));
   TEST_ASSERT_EQUAL(homedeck::SystemView::Calendar, f.preSleepRenderViews[0]);
+  TEST_ASSERT_TRUE(f.calendarViewReset);
 }
 
 void test_prev_month_click_in_calendar() {
@@ -743,6 +752,8 @@ void test_second_calendar_click_switches_back_to_almanac() {
   controller.update();
   TEST_ASSERT_TRUE(f.homeRendered);
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
+  TEST_ASSERT_TRUE(f.calendarViewReset);
+  TEST_ASSERT_TRUE(f.almanacViewReset);
 }
 
 void test_calendar_offset_resets_when_switching_away_and_back() {
@@ -772,6 +783,8 @@ void test_calendar_offset_resets_when_switching_away_and_back() {
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
   TEST_ASSERT_EQUAL(-1, f.calendarOffsets[0]);
+  TEST_ASSERT_TRUE(f.calendarViewReset);
+  TEST_ASSERT_TRUE(f.almanacViewReset);
 }
 
 void test_almanac_offset_resets_when_switching_away_and_back() {
@@ -798,6 +811,8 @@ void test_almanac_offset_resets_when_switching_away_and_back() {
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.almanacOffsets.size()));
   TEST_ASSERT_EQUAL(-1, f.almanacOffsets[0]);
+  TEST_ASSERT_TRUE(f.calendarViewReset);
+  TEST_ASSERT_TRUE(f.almanacViewReset);
 }
 
 int main(int, char**) {

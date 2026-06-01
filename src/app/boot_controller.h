@@ -47,6 +47,8 @@ struct BootControllerDeps {
   std::function<std::time_t()> currentTime;
   std::function<SystemView()> loadSavedView;
   std::function<void(SystemView)> saveCurrentView;
+  std::function<void()> resetCalendarView;
+  std::function<void()> resetAlmanacView;
   std::function<void(SystemView)> preSleepRender;
   std::function<void(const HomeSleepRequest&)> enterDeepSleep;
 };

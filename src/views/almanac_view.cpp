@@ -561,4 +561,8 @@ void AlmanacView::reset() {
   render();
 }
 
+void AlmanacView::resetOffset() {
+  dayOffset_ = 0;
+}
+
 }  // namespace homedeck
