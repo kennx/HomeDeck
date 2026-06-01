@@ -26,6 +26,7 @@
 - `src/generated/`：自动生成资源（设备字体）。请勿手动编辑。
 - `test/native/`：使用 Unity 框架的本机（宿主机）单元测试。
 - `tools/`：用于生成年鉴数据和设备字体的 Python 脚本。
+- `docs/PaperColor.md`：这台设备的文档查，询设备信息、GPIO…… 
 
 ## 环境要求
 
