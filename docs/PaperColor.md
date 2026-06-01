@@ -102,8 +102,8 @@ PaperColor 是一款配备 **4 英寸 E Ink Spectra 6 全彩墨水屏** 的开�
 | ESP32-S3R8 | 信号 | 功能 |
 |------------|------|------|
 | G1 | USER_KEY1 | Button TOP(C) |
-| G9 | USER_KEY3 | Button DOWN(A) |
-| G10 | USER_KEY2 | Button UP(B) |
+| G9 | USER_KEY3 | Button DOWN(B) |
+| G10 | USER_KEY2 | Button UP(A) |
 
 ### 红外（IR）
 
