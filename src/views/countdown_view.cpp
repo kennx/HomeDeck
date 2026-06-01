@@ -41,6 +41,7 @@ CountdownData makeCountdownData(const std::tm& localTime) {
   startOfDay.tm_hour = 0;
   startOfDay.tm_min = 0;
   startOfDay.tm_sec = 0;
+  startOfDay.tm_isdst = -1;  // Let mktime auto-determine DST
 
   std::tm nextYear{};
   nextYear.tm_year = localTime.tm_year + 1;
