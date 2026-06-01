@@ -1,123 +1,67 @@
-# AGENTS.md
+# HomeDeck Agent 指南
 
-始终使用中文回复我，善于使用 MCP 等工具来查阅分析问题
+使用用户输入的语言回复用户
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+本项目是面向 M5Stack PaperColor 设备的 ESP32 嵌入式项目。根目录 `AGENTS.md` 应限于热路径规则：项目地图、硬性约束和工作流要求——每项任务都需要知道的内容。
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+## 工作原则
 
-## 项目介绍
+- 从第一性原理出发。基于真实硬件约束、代码事实和验证结果进行思考；如果目标不明确，先与用户讨论。
+- 将代码而非文档视为真理之源。除非用户明确要求，否则不要为了理解实现而阅读普通 Markdown 文档。
+- 在修改代码前，先阅读相关代码和最新的约束，并遵循目录树中最近的 `AGENTS.md`。
+- 保持修改聚焦。不要顺带进行无关重构。
+- 嵌入式优先：始终考虑内存占用、功耗和硬件约束。
 
- homedeck 是一个基于 [PaperColor](./docs/PaperColor.md) 的放在家里桌面上的电子工具，用于显示时间、日历、温度、湿度、新闻、图片，播报语音信息等等。
+## 项目地图
 
-## 1. Think Before Coding
+- `src/main.cpp`：入口点。在基础硬件初始化后委托给 `app_runtime.cpp`。
+- `src/app_runtime.cpp/h`：应用生命周期（`appSetup`、`appLoop`）。负责编排各子系统。
+- `src/boot_controller.cpp/h`：启动模式决策逻辑（配置模式 vs 系统模式、设置快捷键、睡眠调度）。
+- `src/home_renderer.cpp/h`：电子墨水屏渲染——主 UI。尽量减少绘图操作；避免不必要的刷新。
+- `src/config_*.cpp/h`：配置子系统（类型、存储、验证、门户）。持久化状态保存在 NVS/LittleFS 中。
+- `src/time_service.cpp/h`、`src/timezone_catalog.cpp/h`、`src/almanac_provider.cpp/h`：时间和日历支持。
+- `src/wifi_connection.cpp/h`：WiFi 连接管理。
+- `src/sht40_reader.cpp/h`：温湿度传感器接口。
+- `src/setup_page.cpp/h`：配置模式下提供的基于 Web 的配置 UI。
+- `src/generated/`：自动生成资源（设备字体）。请勿手动编辑。
+- `test/native/`：使用 Unity 框架的本机（宿主机）单元测试。
+- `tools/`：用于生成年鉴数据和设备字体的 Python 脚本。
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+## 环境要求
 
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+- **PlatformIO**：构建、烧录和测试所必需。
+- **目标环境**：`env:m5stack-papercolor`——ESP32-S3，16MB Flash，QIO OPI PSRAM，Arduino 框架。
+- **C++ 标准**：gnu++17（通过 `build_flags` 强制）。
+- **本机测试**：`env:native`——使用 UNITY 和 fake Arduino 存根的主机端编译。
+- 上传波特率：115200。
 
-## 2. Simplicity First
+## 通用编码规则
 
-**Minimum code that solves the problem. Nothing speculative.**
+- 所有应用代码使用 `homedeck` 命名空间。
+- 文件名：`snake_case`。类名：`PascalCase`。函数/变量：`camelCase`。私有成员：尾部下划线（`name_`）。
+- 头文件保护：优先使用 `#pragma once`。
+- 优先通过 `std::function` 和普通结构体进行依赖注入（参见 `BootControllerDeps` 模式），而非静态全局变量或深度继承。
+- 最小化全局状态。如果不可避免，说明原因并限制在翻译单元内使用 `static`。
+- 墨水屏注意：不要在没有速率限制的情况下在循环中调用渲染函数。尊重刷新生命周期；不必要的重绘会导致闪烁和屏幕老化。
+- 睡眠/功耗：设备使用深度睡眠（`enterHomeDeepSleep`）。不要添加会阻止睡眠的忙等待或轮询循环。
+- 内存：ESP32 的 RAM 有限。小缓冲区优先使用栈分配；谨慎使用 `std::vector`/`std::string`。避免在主循环中进行动态分配。
+- 对 Agent 而言，`src/generated/` 是只读的。如果生成的文件需要更新，修改 `tools/` 中的生成器脚本并重新运行。
+- 不要添加过多新测试文件。优先将测试添加到 `test/native/` 下对应组件或模块的现有测试文件中。
+- 当测试因用户修改而失败时，默认先修复测试；除非实现确实存在 bug，否则不要为了满足旧测试而更改实现。
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+## 指令更新位置
 
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+- 影响几乎所有任务的硬性规则：更新根目录 `AGENTS.md`。
+- 仅影响特定目录的规则：更新最近的子目录 `AGENTS.md`。
+- 保持指令更新聚焦，并以代码事实为依据。
 
-## 3. Surgical Changes
+## 工作流要求
 
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
-
-## 5. 优先使用的工具
-
-今年是 2026 年，结合你的知识库来判断你的知识是否落伍/过时
-
-| 场景 | 工具 | 用途 |
-|------|------|------|
-| M5Stack API / 函数签名 / 参数 | **context7** MCP | 查询 M5StickS3 官方文档 |
-| 硬件规格 / 引脚定义 / 接线 | **context7** MCP | 查官方产品文档 |
-| 通用技术问题 / 最佳实践 | **tavily** / **searxng** MCP | 搜索社区方案、GitHub Issues |
-| 代码示例 / 开源项目参考 | **web_search** / **web_fetch** | 查找可运行的示例 |
-| 库兼容性 / 已知 Bug | **context7** + **web_search** | 文档 + 社区验证 |
-| Github 源码阅读 | **github** | 源码阅读 |
-
-## 6. 查询顺序
-
-```
-遇到不确定
-    ↓
-能否用 context7 查官方文档？
-    ↓ 是 → 查文档，获取准确信息
-    ↓ 否 / 文档不清
-能否用 tavily/searxng 搜索社区方案？
-    ↓ 是 → 搜索并交叉验证 2-3 个来源
-    ↓ 否 / 搜索结果矛盾
-停下来，向用户说明困惑点，请求澄清
-```
-
-## 7. 不编造规则
-
-- **不编造 API 参数**：如果不确定 `M5.Power.getBatteryVoltage()` 的返回值类型，用 **context7** 查 M5Unified 文档。
-- **不编造引脚定义**：如果不确定 EXT 2.54-14P 的 `SCK` 对应哪个 GPIO，用 **context7** 查 Cardputer-Adv PinMap。
-- **不编造硬件限制**：如果不确定 `ESP32-S3` 的 BLE 是否支持 Classic Bluetooth，用 **searxng** 搜索官方 specs。
-- **不编造库版本**：如果不确定 `RadioLib` 是否支持 SX1262 的特定功能，用 **context7** 查库文档或 GitHub release notes。
-
-## 8. 项目特定规则
-
-- 使用 **PlatformIO** 构建系统（`platformio.ini`）
-- 框架：**Arduino**（ESP32-S3）
-- 核心库：**M5Unified** + **M5GFX** + **M5PM1**
-- 代码风格：遵循现有项目的风格，如果不确定，问用户或查 `.clang-format`
-- 所有新功能必须有可验证的 **test** 或 **demo**
-
----
-
-## 9. git commit 规范
-
-- 使用中文
-- 标题行使用 conventional commits 格式（feat/fix/refactor/chore 等）
-- body 中按文件或功能分组，说明改了什么、为什么改、影响范围
-- 修复 bug 需说明根因；架构决策需简要说明理由
-
----
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+- git commit 规范：
+  - 标题行使用 conventional commits 格式（feat: / fix: / refactor: / chore: 等）。
+  - body 中按文件或功能分组，说明改了什么、为什么改、影响范围。
+  - 修复 bug 需说明根因；架构决策需简要说明理由。
+- 如果 **rg** 可用优先使用 `rg` / `rg --files` 读取文件。
+- 在设计修改时，优先遵循现有的边界和本地模式。
+- 完成任务后，在声称完成前，使用 `pio run -e m5stack-papercolor`（构建）和 `pio test -e native`（单元测试）进行验证。
+- 当添加新的硬件相关代码时，在 `test/native/support/` 下提供配套的主机端 fake 或 stub，以确保本机测试能够继续编译。
