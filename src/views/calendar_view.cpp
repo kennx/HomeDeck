@@ -53,6 +53,17 @@ int cellCenterX(int col) {
   return (cellLeftX(col) + cellRightX(col)) / 2;
 }
 
+void normalizeYearMonth(int& year, int& month) {
+  while (month > 12) {
+    month -= 12;
+    year++;
+  }
+  while (month < 1) {
+    month += 12;
+    year--;
+  }
+}
+
 }  // namespace
 
 void CalendarView::render(const CalendarData& data) {
@@ -325,15 +336,7 @@ void CalendarView::render() {
 
   int targetYear = local->tm_year + 1900;
   int targetMonth = local->tm_mon + 1 + monthOffset_;
-
-  while (targetMonth > 12) {
-    targetMonth -= 12;
-    targetYear++;
-  }
-  while (targetMonth < 1) {
-    targetMonth += 12;
-    targetYear--;
-  }
+  normalizeYearMonth(targetYear, targetMonth);
 
   CalendarData data = makeCalendarData(*local);
   data.year = targetYear;
@@ -360,15 +363,7 @@ void CalendarView::renderSleep() {
 
   int targetYear = pLocal->tm_year + 1900;
   int targetMonth = pLocal->tm_mon + 1 + monthOffset_;
-
-  while (targetMonth > 12) {
-    targetMonth -= 12;
-    targetYear++;
-  }
-  while (targetMonth < 1) {
-    targetMonth += 12;
-    targetYear--;
-  }
+  normalizeYearMonth(targetYear, targetMonth);
 
   CalendarData data = makeCalendarData(*pLocal);
   data.year = targetYear;

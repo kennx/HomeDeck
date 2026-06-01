@@ -26,6 +26,9 @@ M5Canvas& sprite() {
 
 std::string formatCurrentTimeHHMM() {
   std::time_t now = std::time(nullptr);
+  if (now <= 0) {
+    return "--:--";
+  }
   std::tm buf{};
   std::tm* local = localtime_r(&now, &buf);
   char timeStr[6] = {};
