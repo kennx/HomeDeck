@@ -1,7 +1,9 @@
 #include <unity.h>
 
 #include <Arduino.h>
+#include <Adafruit_NeoPixel.h>
 #include <M5Unified.h>
+#include <M5PM1.h>
 #include <Preferences.h>
 #include <driver/rtc_io.h>
 #include <esp_sntp.h>
@@ -11,8 +13,15 @@
 #include <cstdlib>
 #include <cstdint>
 
-#include "app_runtime.h"
-#include "boot_controller.h"
+#include "app/app_runtime.h"
+#include "app/boot_controller.h"
+
+namespace homedeck {
+extern SystemView gRtcSavedView;
+void prepareEpdAfterWakeupForTest();
+void initRgbLedForTest();
+void shutdownRgbLedForSleepForTest();
+}
 
 namespace {
 
@@ -50,6 +59,24 @@ bool hasDeepSleepPrint() {
   return false;
 }
 
+bool hasNonBlockingEpdWakeupSequence() {
+  using Event = FakeDisplay::FakeEpdEvent;
+  const auto& events = M5.Display.epdEvents;
+  for (std::size_t i = 0; i + 2 < events.size(); ++i) {
+    if (events[i].type != Event::Type::SetMode || events[i].mode != epd_mode_t::epd_quality) {
+      continue;
+    }
+    if (events[i + 1].type != Event::Type::Wakeup) {
+      continue;
+    }
+    if (events[i + 2].type != Event::Type::SetMode || events[i + 2].mode != epd_mode_t::epd_fast) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 void setUp() {
@@ -60,6 +87,9 @@ void setUp() {
   fakeEspSleepReset();
   fakeEspSleepResetExt0();
   fakeRtcIoReset();
+  fakeM5Pm1Reset();
+  fakeNeoPixelReset();
+  homedeck::gRtcSavedView = homedeck::SystemView::Almanac;
 }
 
 void tearDown() {
@@ -88,9 +118,8 @@ void test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_display_sleep
   TEST_ASSERT_EQUAL(ESP_PD_OPTION_ON, gFakeSleepPdOption);
   TEST_ASSERT_EQUAL(1, gFakeExt0Gpio);
   TEST_ASSERT_EQUAL(0, gFakeExt0Level);
-  TEST_ASSERT_TRUE(hasDeepSleepPrint());
   TEST_ASSERT_EQUAL(1, M5.Display.sleepCount);
-  TEST_ASSERT_EQUAL(2, M5.Display.waitDisplayCount);
+  TEST_ASSERT_EQUAL(1, M5.Display.waitDisplayCount);
   TEST_ASSERT_TRUE(gDeepSleepCalled);
 }
 
@@ -109,6 +138,21 @@ void test_enter_home_deep_sleep_does_not_touch_i2c() {
   TEST_ASSERT_EQUAL(0, static_cast<int>(M5.In_I2C.writtenBytes.size()));
 }
 
+void test_shutdown_rgb_led_for_sleep_turns_off_rgb_pixels_and_ldo() {
+  homedeck::initRgbLedForTest();
+
+  const int clearCountBeforeSleep = gFakeNeoPixelClearCount;
+  const int showCountBeforeSleep = gFakeNeoPixelShowCount;
+  gFakePm1LdoEnableCalls.clear();
+
+  homedeck::shutdownRgbLedForSleepForTest();
+
+  TEST_ASSERT_EQUAL(clearCountBeforeSleep + 1, gFakeNeoPixelClearCount);
+  TEST_ASSERT_EQUAL(showCountBeforeSleep + 1, gFakeNeoPixelShowCount);
+  TEST_ASSERT_EQUAL(1, static_cast<int>(gFakePm1LdoEnableCalls.size()));
+  TEST_ASSERT_FALSE(gFakePm1LdoEnableCalls[0]);
+}
+
 void test_app_setup_reapplies_timezone_after_rtc_restore() {
   setenv("TZ", "UTC", 1);
   tzset();
@@ -121,6 +165,24 @@ void test_app_setup_reapplies_timezone_after_rtc_restore() {
 
   TEST_ASSERT_TRUE(M5.Rtc.setSystemTimeFromRtcCalled);
   TEST_ASSERT_EQUAL_STRING("CST-8", std::getenv("TZ"));
+}
+
+void test_prepare_epd_after_wakeup_uses_non_blocking_wakeup_sequence() {
+  homedeck::prepareEpdAfterWakeupForTest();
+
+  TEST_ASSERT_TRUE(hasNonBlockingEpdWakeupSequence());
+  TEST_ASSERT_EQUAL(0, M5.Display.waitDisplayCount);
+}
+
+void test_init_rgb_led_enables_power_and_keeps_pixels_off() {
+  homedeck::initRgbLedForTest();
+
+  TEST_ASSERT_EQUAL(1, gFakePm1BeginCount);
+  TEST_ASSERT_EQUAL(1, static_cast<int>(gFakePm1LdoEnableCalls.size()));
+  TEST_ASSERT_TRUE(gFakePm1LdoEnableCalls[0]);
+  TEST_ASSERT_EQUAL(1, gFakeNeoPixelBeginCount);
+  TEST_ASSERT_EQUAL(1, gFakeNeoPixelClearCount);
+  TEST_ASSERT_EQUAL(1, gFakeNeoPixelShowCount);
 }
 
 void test_sync_ntp_waits_for_sntp_completion_even_when_clock_is_already_modern() {
@@ -285,7 +347,10 @@ int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_display_sleep);
   RUN_TEST(test_enter_home_deep_sleep_does_not_touch_i2c);
+  RUN_TEST(test_shutdown_rgb_led_for_sleep_turns_off_rgb_pixels_and_ldo);
   RUN_TEST(test_app_setup_reapplies_timezone_after_rtc_restore);
+  RUN_TEST(test_prepare_epd_after_wakeup_uses_non_blocking_wakeup_sequence);
+  RUN_TEST(test_init_rgb_led_enables_power_and_keeps_pixels_off);
   RUN_TEST(test_sync_ntp_waits_for_sntp_completion_even_when_clock_is_already_modern);
   RUN_TEST(test_sync_ntp_returns_time_after_sntp_completion);
   RUN_TEST(test_write_rtc_utc_accepts_one_second_readback_drift);

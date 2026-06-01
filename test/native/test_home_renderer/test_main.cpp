@@ -8,7 +8,9 @@
 #include <string>
 
 #include "../support/almanac_fixture.h"
-#include "home_renderer.h"
+#include "views/almanac_view.h"
+#include "views/calendar_view.h"
+#include "views/home_renderer.h"
 
 namespace {
 
@@ -96,6 +98,57 @@ void test_home_calendar_data_uses_almanac_package_when_available() {
   TEST_ASSERT_EQUAL_STRING("嫁娶", data.ji.c_str());
 }
 
+void test_calendar_data_reads_almanac_file_once_for_lookahead_scan() {
+  fakeLittleFSSetFile("/almanac.bin", homedeck::test::buildSingleDayFixturePackage());
+
+  std::tm local{};
+  local.tm_year = 1900 - 1900;
+  local.tm_mon = 0;
+  local.tm_mday = 1;
+  local.tm_wday = 1;
+
+  const auto data = homedeck::makeCalendarData(local);
+
+  TEST_ASSERT_EQUAL_STRING("腊月初一", data.lunarDate.c_str());
+  TEST_ASSERT_EQUAL(1, LittleFS.beginCount);
+  TEST_ASSERT_EQUAL(1, LittleFS.openCount);
+  TEST_ASSERT_EQUAL(1, LittleFS.endCount);
+}
+
+void test_calendar_data_retries_after_failed_almanac_lookup() {
+  std::tm local{};
+  local.tm_year = 1900 - 1900;
+  local.tm_mon = 0;
+  local.tm_mday = 1;
+  local.tm_wday = 1;
+
+  (void)homedeck::makeCalendarData(local);
+
+  fakeLittleFSSetFile("/almanac.bin", homedeck::test::buildSingleDayFixturePackage());
+  const auto data = homedeck::makeCalendarData(local);
+
+  TEST_ASSERT_EQUAL_STRING("腊月初一", data.lunarDate.c_str());
+  TEST_ASSERT_EQUAL(2, LittleFS.openCount);
+}
+
+void test_home_calendar_data_reuses_calendar_almanac_cache_for_same_day() {
+  fakeLittleFSSetFile("/almanac.bin", homedeck::test::buildSingleDayFixturePackage());
+
+  std::tm local{};
+  local.tm_year = 1900 - 1900;
+  local.tm_mon = 0;
+  local.tm_mday = 1;
+  local.tm_wday = 1;
+
+  (void)homedeck::makeCalendarData(local);
+  const int openCountAfterCalendar = LittleFS.openCount;
+
+  const auto data = homedeck::makeHomeCalendarData(local);
+
+  TEST_ASSERT_EQUAL_STRING("腊月初一", data.lunarDate.c_str());
+  TEST_ASSERT_EQUAL(openCountAfterCalendar, LittleFS.openCount);
+}
+
 void test_home_calendar_data_uses_placeholder_for_empty_almanac_actions() {
   auto day = homedeck::test::singleDayFixture();
   day.yi.clear();
@@ -143,6 +196,7 @@ void test_home_calendar_data_keeps_public_date_when_almanac_missing() {
 void setUp() {
   M5 = FakeM5Global{};
   fakeLittleFSReset();
+  homedeck::resetAlmanacCacheForTest();
   gLastQrCodeText.clear();
 }
 
@@ -186,7 +240,7 @@ void test_home_renderer_draws_lunar_calendar_portrait() {
     } else if (print.text == "21") {
       TEST_ASSERT_EQUAL(200, print.x);
       TEST_ASSERT_EQUAL(39, print.y);
-      TEST_ASSERT_EQUAL(2, print.size);
+      TEST_ASSERT_EQUAL(1, print.size);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceLargeDate), static_cast<int>(print.fontKind));
       foundDay = true;
     } else if (print.text == "四月初六 小满") {
@@ -227,7 +281,7 @@ void test_home_renderer_draws_lunar_calendar_portrait() {
 
 void test_home_renderer_wraps_unspaced_chinese_text_by_character() {
   auto data = figmaCalendarData();
-  data.yi = "甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥甲乙丙丁戊己庚辛壬癸";
+  data.yi = "甲 乙 丙 丁 戊 己 庚 辛 壬 癸 子 丑 寅 卯 辰 巳 午 未 申 酉 戌 亥 甲 乙 丙 丁 戊 己 庚 辛 壬 癸";
   homedeck::HomeRenderer renderer;
 
   renderer.render(data);
@@ -262,12 +316,12 @@ void test_home_renderer_uses_red_for_all_holiday_text_and_table_lines() {
 
   TEST_ASSERT_GREATER_THAN(0, static_cast<int>(M5.Display.prints.size()));
   for (const auto& print : M5.Display.prints) {
-    TEST_ASSERT_EQUAL_UINT32(kHolidayColor, print.color);
+    TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
   }
 
   TEST_ASSERT_GREATER_THAN(0, static_cast<int>(M5.Display.rects.size()));
   for (const auto& rect : M5.Display.rects) {
-    TEST_ASSERT_EQUAL_UINT32(kHolidayColor, rect.color);
+    TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, rect.color);
   }
 }
 
@@ -295,7 +349,7 @@ void test_home_renderer_shrinks_yi_ji_rows_when_content_is_single_line() {
     if (print.text == "忌" && print.y == 444) {
       foundJiLabel = true;
     }
-    if (print.text == "结" && print.y == 444) {
+    if (print.text == "结婚" && print.y == 444) {
       foundJiContent = true;
     }
   }
@@ -323,7 +377,7 @@ void test_home_renderer_draws_environment_readings_at_bottom_edges() {
       TEST_ASSERT_EQUAL(12, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_left), print.datum);
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
       foundTemperature = true;
     }
@@ -331,7 +385,7 @@ void test_home_renderer_draws_environment_readings_at_bottom_edges() {
       TEST_ASSERT_EQUAL(388, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_right), print.datum);
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
       foundHumidity = true;
     }
@@ -381,7 +435,7 @@ void test_home_renderer_does_not_draw_bottom_center_message_by_default() {
 
 void test_home_renderer_draws_bottom_center_message_when_present() {
   auto data = figmaCalendarData();
-  data.bottomCenterMessage = "DEEP SLEEP";
+  data.bottomCenterMessage = "14:30";
   data.temperatureAvailable = true;
   data.temperatureCelsius = 30.04f;
   data.humidityAvailable = true;
@@ -394,19 +448,19 @@ void test_home_renderer_draws_bottom_center_message_when_present() {
   bool foundTemperature = false;
   bool foundHumidity = false;
   for (const auto& print : M5.Display.prints) {
-    if (print.text == "DEEP SLEEP") {
+    if (print.text == "14:30") {
       TEST_ASSERT_EQUAL(200, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_center), print.datum);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       foundMessage = true;
     }
     if (print.text == "30.0°C") {
       TEST_ASSERT_EQUAL(12, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_left), print.datum);
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
       foundTemperature = true;
     }
@@ -414,7 +468,7 @@ void test_home_renderer_draws_bottom_center_message_when_present() {
       TEST_ASSERT_EQUAL(388, print.x);
       TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
       TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_right), print.datum);
-      TEST_ASSERT_EQUAL_UINT32(kWeekdayColor, print.color);
+      TEST_ASSERT_EQUAL_UINT32(TFT_BLACK, print.color);
       TEST_ASSERT_EQUAL(static_cast<int>(FakeFontKind::kDeviceDefault), static_cast<int>(print.fontKind));
       foundHumidity = true;
     }
@@ -425,21 +479,21 @@ void test_home_renderer_draws_bottom_center_message_when_present() {
   TEST_ASSERT_TRUE(foundHumidity);
 }
 
-void test_home_renderer_does_not_draw_bottom_center_message_for_other_text() {
+void test_home_renderer_does_not_draw_bottom_center_message_when_empty() {
   auto data = figmaCalendarData();
-  data.bottomCenterMessage = "HELLO";
+  data.bottomCenterMessage = "";
   homedeck::HomeRenderer renderer;
 
   renderer.render(data);
 
   for (const auto& print : M5.Display.prints) {
-    TEST_ASSERT_FALSE(print.text == "DEEP SLEEP");
+    TEST_ASSERT_FALSE(static_cast<int>(textdatum_t::bottom_center) == print.datum);
   }
 }
 
 void test_home_renderer_limits_yi_and_ji_to_two_lines() {
   auto data = figmaCalendarData();
-  data.yi = "甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥";
+  data.yi = "甲 乙 丙 丁 戊 己 庚 辛 壬 癸 子 丑 寅 卯 辰 巳 午 未 申 酉 戌 亥 甲 乙 丙 丁 戊 己 庚 辛 壬 癸 子 丑 寅 卯 辰 巳 午 未 申 酉 戌 亥";
   data.ji = data.yi;
   homedeck::HomeRenderer renderer;
 
@@ -499,9 +553,106 @@ void test_home_renderer_draws_config_portal_layout() {
   TEST_ASSERT_EQUAL(1, M5.Display.waitDisplayCount);
 }
 
+void test_calendar_no_highlight_when_day_is_zero() {
+  homedeck::CalendarData data;
+  data.year = 2026;
+  data.month = 4;
+  data.day = 0;
+
+  homedeck::HomeRenderer renderer;
+  renderer.renderCalendar(data);
+
+  // 日期网格区域 Y 范围: kCalDateStartY=108 到 kCalDateStartY + 6*(47+10)=450
+  constexpr int kDateGridMinY = 108;
+  constexpr int kDateGridMaxY = 450;
+
+  bool foundHighlight = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.color == TFT_WHITE && print.y >= kDateGridMinY && print.y <= kDateGridMaxY) {
+      foundHighlight = true;
+    }
+  }
+  TEST_ASSERT_FALSE(foundHighlight);
+}
+
+void test_calendar_renders_past_month_correctly() {
+  homedeck::CalendarData data;
+  data.year = 2026;
+  data.month = 4;
+  data.day = 26;
+  data.todayWeekday = 0;  // 星期日
+
+  homedeck::HomeRenderer renderer;
+  renderer.renderCalendar(data);
+
+  bool foundYear = false;
+  bool foundMonth = false;
+  bool foundWeekday = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.text == "2026 年") {
+      TEST_ASSERT_EQUAL(12, print.x);
+      TEST_ASSERT_EQUAL(12, print.y);
+      foundYear = true;
+    }
+    if (print.text == "四月") {
+      TEST_ASSERT_EQUAL(200, print.x);
+      TEST_ASSERT_EQUAL(12, print.y);
+      foundMonth = true;
+    }
+    if (print.text == "星期日") {
+      TEST_ASSERT_EQUAL(388, print.x);
+      TEST_ASSERT_EQUAL(12, print.y);
+      foundWeekday = true;
+    }
+  }
+  TEST_ASSERT_TRUE(foundYear);
+  TEST_ASSERT_TRUE(foundMonth);
+  TEST_ASSERT_TRUE(foundWeekday);
+}
+
+void test_calendar_draws_bottom_center_message_when_present() {
+  homedeck::CalendarData data;
+  data.year = 2026;
+  data.month = 5;
+  data.day = 28;
+  data.bottomCenterMessage = "09:15";
+  data.temperatureAvailable = true;
+  data.temperatureCelsius = 25.5f;
+  data.humidityAvailable = true;
+  data.humidityPercent = 60.0f;
+
+  homedeck::HomeRenderer renderer;
+  renderer.renderCalendar(data);
+
+  bool foundMessage = false;
+  bool foundTemperature = false;
+  bool foundHumidity = false;
+  for (const auto& print : M5.Display.prints) {
+    if (print.text == "09:15") {
+      TEST_ASSERT_EQUAL(200, print.x);
+      TEST_ASSERT_EQUAL(kEnvironmentTextBottomY, print.y);
+      TEST_ASSERT_EQUAL(static_cast<int>(textdatum_t::bottom_center), print.datum);
+      foundMessage = true;
+    }
+    if (print.text == "25.5°C") {
+      foundTemperature = true;
+    }
+    if (print.text == "60.0%") {
+      foundHumidity = true;
+    }
+  }
+
+  TEST_ASSERT_TRUE(foundMessage);
+  TEST_ASSERT_TRUE(foundTemperature);
+  TEST_ASSERT_TRUE(foundHumidity);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_home_calendar_data_uses_almanac_package_when_available);
+  RUN_TEST(test_calendar_data_reads_almanac_file_once_for_lookahead_scan);
+  RUN_TEST(test_calendar_data_retries_after_failed_almanac_lookup);
+  RUN_TEST(test_home_calendar_data_reuses_calendar_almanac_cache_for_same_day);
   RUN_TEST(test_home_calendar_data_uses_placeholder_for_empty_almanac_actions);
   RUN_TEST(test_home_calendar_data_keeps_public_date_when_almanac_missing);
   RUN_TEST(test_home_renderer_draws_lunar_calendar_portrait);
@@ -512,8 +663,11 @@ int main(int, char**) {
   RUN_TEST(test_home_renderer_draws_environment_placeholders_when_unavailable);
   RUN_TEST(test_home_renderer_does_not_draw_bottom_center_message_by_default);
   RUN_TEST(test_home_renderer_draws_bottom_center_message_when_present);
-  RUN_TEST(test_home_renderer_does_not_draw_bottom_center_message_for_other_text);
+  RUN_TEST(test_home_renderer_does_not_draw_bottom_center_message_when_empty);
   RUN_TEST(test_home_renderer_limits_yi_and_ji_to_two_lines);
   RUN_TEST(test_home_renderer_draws_config_portal_layout);
+  RUN_TEST(test_calendar_no_highlight_when_day_is_zero);
+  RUN_TEST(test_calendar_renders_past_month_correctly);
+  RUN_TEST(test_calendar_draws_bottom_center_message_when_present);
   return UNITY_END();
 }

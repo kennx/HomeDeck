@@ -121,24 +121,35 @@ void writeBigEndian32(std::ostream& output, std::uint32_t value) {
 }
 
 std::vector<std::uint8_t> copyBitmap(const FT_Bitmap& bitmap) {
-  if (bitmap.pixel_mode != FT_PIXEL_MODE_GRAY) {
-    throw std::runtime_error("FreeType rendered a non-grayscale bitmap");
-  }
-
   std::vector<std::uint8_t> bytes;
   bytes.reserve(static_cast<std::size_t>(bitmap.width) * bitmap.rows);
   const int pitch = bitmap.pitch;
   const int stride = std::abs(pitch);
-  for (unsigned int y = 0; y < bitmap.rows; ++y) {
-    const unsigned int source_y = pitch >= 0 ? y : bitmap.rows - 1 - y;
-    const unsigned char* row = bitmap.buffer + source_y * stride;
-    bytes.insert(bytes.end(), row, row + bitmap.width);
+
+  if (bitmap.pixel_mode == FT_PIXEL_MODE_GRAY) {
+    for (unsigned int y = 0; y < bitmap.rows; ++y) {
+      const unsigned int source_y = pitch >= 0 ? y : bitmap.rows - 1 - y;
+      const unsigned char* row = bitmap.buffer + source_y * stride;
+      bytes.insert(bytes.end(), row, row + bitmap.width);
+    }
+  } else if (bitmap.pixel_mode == FT_PIXEL_MODE_MONO) {
+    for (unsigned int y = 0; y < bitmap.rows; ++y) {
+      const unsigned int source_y = pitch >= 0 ? y : bitmap.rows - 1 - y;
+      const unsigned char* row = bitmap.buffer + source_y * stride;
+      for (unsigned int x = 0; x < bitmap.width; ++x) {
+        const bool set = (row[x / 8] >> (7 - (x % 8))) & 1;
+        bytes.push_back(set ? 0xFF : 0x00);
+      }
+    }
+  } else {
+    throw std::runtime_error("FreeType rendered an unsupported bitmap format");
   }
+
   return bytes;
 }
 
 Glyph renderGlyph(FT_Face face, std::uint32_t code_point) {
-  if (FT_Load_Char(face, code_point, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL) !=
+  if (FT_Load_Char(face, code_point, FT_LOAD_RENDER | FT_LOAD_TARGET_MONO) !=
       0) {
     std::ostringstream message;
     message << "failed to render U+" << std::uppercase << std::hex
@@ -187,7 +198,7 @@ bool validateGlyphs(const std::vector<Glyph>& glyphs) {
     }
     previous_code_point = glyph.code_point;
 
-    if (glyph.height > 255) {
+    if (glyph.height > 65535) {
       printGlyphValidationError(glyph, "height", glyph.height);
       valid = false;
     }

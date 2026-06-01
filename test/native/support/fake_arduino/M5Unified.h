@@ -15,6 +15,13 @@
 constexpr std::uint32_t TFT_BLACK = 0x00000000u;
 constexpr std::uint32_t TFT_WHITE = 0x00FFFFFFu;
 
+enum class epd_mode_t {
+  epd_quality = 0,
+  epd_text = 1,
+  epd_fast = 2,
+  epd_fastest = 3,
+};
+
 namespace fonts {
 inline const int efontCN_14 = 0;
 }  // namespace fonts
@@ -24,9 +31,8 @@ enum class FakeFontKind {
   kChinese = 1,
   kDeviceDefault = 2,
   kDeviceMetric = 3,
-  kDeviceTime = 4,
-  kConfigPortal = 5,
-  kDeviceLargeDate = 6,
+  kConfigPortal = 4,
+  kDeviceLargeDate = 5,
 };
 
 namespace m5 {
@@ -275,6 +281,19 @@ enum class textdatum_t {
 };
 
 struct FakeDisplay {
+  struct FakeEpdEvent {
+    enum class Type {
+      SetMode,
+      Wakeup,
+      Clear,
+      WaitDisplay,
+    };
+
+    Type type = Type::Wakeup;
+    epd_mode_t mode = epd_mode_t::epd_fast;
+    std::uint32_t color = 0;
+  };
+
   int rotation = 0;
   int cursorX = 0;
   int cursorY = 0;
@@ -297,6 +316,10 @@ struct FakeDisplay {
   int waitDisplayCount = 0;
   int sleepCount = 0;
   int wakeupCount = 0;
+  int clearCount = 0;
+  std::vector<std::uint32_t> clearColors;
+  std::vector<epd_mode_t> epdModes;
+  std::vector<FakeEpdEvent> epdEvents;
 
   void sleep() {
     ++sleepCount;
@@ -304,6 +327,14 @@ struct FakeDisplay {
 
   void wakeup() {
     ++wakeupCount;
+    epdEvents.push_back({FakeEpdEvent::Type::Wakeup, epd_mode_t::epd_fast, 0});
+  }
+
+  void clear(std::uint32_t color) {
+    ++clearCount;
+    clearColors.push_back(color);
+    fillScreenColor = color;
+    epdEvents.push_back({FakeEpdEvent::Type::Clear, epd_mode_t::epd_fast, color});
   }
 
   static int lineHeightFor(FakeFontKind kind) {
@@ -312,9 +343,6 @@ struct FakeDisplay {
     }
     if (kind == FakeFontKind::kDeviceMetric) {
       return 28;
-    }
-    if (kind == FakeFontKind::kDeviceTime) {
-      return 42;
     }
     if (kind == FakeFontKind::kDeviceLargeDate) {
       return 78;
@@ -409,10 +437,6 @@ struct FakeDisplay {
       return leadByte < 0x80 || (leadByte & 0xE0) == 0xC0 ? 14 : 28;
     }
 
-    if (kind == FakeFontKind::kDeviceTime) {
-      return leadByte < 0x80 || (leadByte & 0xE0) == 0xC0 ? 21 : 42;
-    }
-
     if (kind == FakeFontKind::kDeviceLargeDate) {
       return 39;
     }
@@ -437,8 +461,6 @@ struct FakeDisplay {
       fontKind = FakeFontKind::kDeviceLargeDate;
     } else if (font == homedeck::generated::kDeviceMetricFontVlw) {
       fontKind = FakeFontKind::kDeviceMetric;
-    } else if (font == homedeck::generated::kDeviceTimeFontVlw) {
-      fontKind = FakeFontKind::kDeviceTime;
     } else if (font == homedeck::generated::kDeviceFontVlw) {
       fontKind = FakeFontKind::kDeviceDefault;
     } else {
@@ -483,6 +505,21 @@ struct FakeDisplay {
     return width;
   }
 
+  int fontHeight() const {
+    return lineHeightFor(fontKind) * textSize;
+  }
+
+  void getTextBounds(const char* text, int16_t, int16_t,
+                     int16_t* x1, int16_t* y1, uint16_t* w, uint16_t* h) {
+    if (text == nullptr || x1 == nullptr || y1 == nullptr || w == nullptr || h == nullptr) {
+      return;
+    }
+    *w = textWidth(text);
+    *h = lineHeightFor(fontKind) * textSize;
+    *x1 = 0;
+    *y1 = -*h;
+  }
+
   void drawRect(int x, int y, int w, int h, std::uint32_t color) {
     rects.push_back({x, y, w, h, color});
   }
@@ -504,6 +541,7 @@ struct FakeDisplay {
 
   void waitDisplay() {
     ++waitDisplayCount;
+    epdEvents.push_back({FakeEpdEvent::Type::WaitDisplay, epd_mode_t::epd_fast, 0});
   }
 
   void setTextDatum(textdatum_t value) {
@@ -517,7 +555,9 @@ struct FakeDisplay {
         {x, y, textSize, fontKind, text != nullptr ? text : "", textColor, textBackground, static_cast<int>(textDatum)});
   }
 
-  void setEpdMode(int) {
+  void setEpdMode(epd_mode_t mode) {
+    epdModes.push_back(mode);
+    epdEvents.push_back({FakeEpdEvent::Type::SetMode, mode, 0});
   }
 };
 
@@ -566,6 +606,9 @@ struct FakeCanvas {
     if (parent != nullptr) {
       parent->fillScreenColor = color;
     }
+    prints.clear();
+    rects.clear();
+    pngDraws.clear();
   }
 
   void setColorDepth(int depth) {
@@ -580,6 +623,18 @@ struct FakeCanvas {
       parent->textBackground = bg;
     }
   }
+
+  void setTextColor(std::uint32_t fg) {
+    textColor = fg;
+    if (parent != nullptr) {
+      parent->textColor = fg;
+    }
+  }
+
+  void fillCircle(int x, int y, int r, std::uint32_t color) {
+    rects.push_back({x - r, y - r, r * 2, r * 2, color});
+  }
+
 
   void setTextWrap(bool value) {
     if (parent != nullptr) {
@@ -668,6 +723,21 @@ struct FakeCanvas {
     return width;
   }
 
+  int fontHeight() const {
+    return FakeDisplay::lineHeightFor(fontKind) * textSize;
+  }
+
+  void getTextBounds(const char* text, int16_t, int16_t,
+                     int16_t* x1, int16_t* y1, uint16_t* w, uint16_t* h) {
+    if (text == nullptr || x1 == nullptr || y1 == nullptr || w == nullptr || h == nullptr) {
+      return;
+    }
+    *w = textWidth(text);
+    *h = FakeDisplay::lineHeightFor(fontKind) * textSize;
+    *x1 = 0;
+    *y1 = -*h;
+  }
+
   void drawRect(int x, int y, int w, int h, std::uint32_t color) {
     rects.push_back({x, y, w, h, color});
   }
@@ -731,8 +801,29 @@ using M5Canvas = FakeCanvas;
 
 struct FakeButton {
   bool pressed = false;
+  bool clicked = false;
+  int clickCount = 0;
+  bool decideClickCount = false;
+
   bool isPressed() const {
     return pressed;
+  }
+  bool wasClicked() {
+    if (clicked) {
+      clicked = false;
+      return true;
+    }
+    return false;
+  }
+  bool wasDecideClickCount() {
+    if (decideClickCount) {
+      decideClickCount = false;
+      return true;
+    }
+    return false;
+  }
+  int getClickCount() const {
+    return clickCount;
   }
 };
 
@@ -759,6 +850,12 @@ struct FakePower {
   int16_t getVBUSVoltage() { return vbus_voltage; }
   int32_t getBatteryLevel() { return battery_level; }
   void setLed(uint8_t) {}
+  void deepSleep(std::uint64_t micro_seconds, bool touch_wakeup = true) {
+    (void)micro_seconds;
+    (void)touch_wakeup;
+    extern void esp_deep_sleep_start(void);
+    esp_deep_sleep_start();
+  }
 };
 
 struct FakeM5Config {
