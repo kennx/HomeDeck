@@ -492,7 +492,7 @@ void AlmanacView::render(const HomeCalendarData& data) {
 }
 
 void AlmanacView::render() {
-  std::time_t now = time(nullptr);
+  std::time_t now = std::time(nullptr);
   std::tm buf{};
   std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   std::tm fallback = fallbackLocalTime();
@@ -523,7 +523,7 @@ void AlmanacView::renderWithOffset(int dayOffset) {
 }
 
 void AlmanacView::renderSleep() {
-  std::time_t now = time(nullptr);
+  std::time_t now = std::time(nullptr);
   std::tm buf{};
   std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   std::tm fallback = fallbackLocalTime();
