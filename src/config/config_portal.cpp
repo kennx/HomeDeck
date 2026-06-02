@@ -67,6 +67,8 @@ SetupConfig ConfigPortal::readConfigFromRequest() {
   config.timezoneIana = server_.arg("timezone").c_str();
   config.autoRtcCorrection = server_.arg("auto_rtc") == "1" && !config.wifiSsid.empty();
   config.ntpServer = server_.arg("ntp_server").c_str();
+  config.latitude = server_.arg("latitude").c_str();
+  config.longitude = server_.arg("longitude").c_str();
   return config;
 }
 
