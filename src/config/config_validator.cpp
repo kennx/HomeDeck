@@ -53,7 +53,7 @@ bool parseLatitude(std::string_view value, double* out) {
   char* end = nullptr;
   const double d = std::strtod(std::string(value).c_str(), &end);
   if (*end != '\0') return false;
-  if (d < -90.0 || d > 90.0) return false;
+  if (!(d >= -90.0 && d <= 90.0)) return false;
   if (out) *out = d;
   return true;
 }
@@ -63,7 +63,7 @@ bool parseLongitude(std::string_view value, double* out) {
   char* end = nullptr;
   const double d = std::strtod(std::string(value).c_str(), &end);
   if (*end != '\0') return false;
-  if (d < -180.0 || d > 180.0) return false;
+  if (!(d >= -180.0 && d <= 180.0)) return false;
   if (out) *out = d;
   return true;
 }

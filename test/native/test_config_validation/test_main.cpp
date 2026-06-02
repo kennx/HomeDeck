@@ -187,6 +187,34 @@ void test_malformed_latitude_rejected() {
   TEST_ASSERT_EQUAL(homedeck::ConfigValidationError::InvalidLatitude, result.error);
 }
 
+void test_nan_latitude_rejected() {
+  homedeck::SetupConfig config{};
+  config.timezoneIana = "Asia/Shanghai";
+  config.wifiSsid = "Home";
+  config.ntpServer = "pool.ntp.org";
+  config.latitude = "nan";
+  config.longitude = "121.4737";
+  homedeck::ManualDateTime manual{true, 2026, 5, 24, 12, 0, 0};
+
+  const auto result = homedeck::validateSetupSubmission(config, manual);
+
+  TEST_ASSERT_EQUAL(homedeck::ConfigValidationError::InvalidLatitude, result.error);
+}
+
+void test_inf_longitude_rejected() {
+  homedeck::SetupConfig config{};
+  config.timezoneIana = "Asia/Shanghai";
+  config.wifiSsid = "Home";
+  config.ntpServer = "pool.ntp.org";
+  config.latitude = "31.2304";
+  config.longitude = "inf";
+  homedeck::ManualDateTime manual{true, 2026, 5, 24, 12, 0, 0};
+
+  const auto result = homedeck::validateSetupSubmission(config, manual);
+
+  TEST_ASSERT_EQUAL(homedeck::ConfigValidationError::InvalidLongitude, result.error);
+}
+
 void test_timezone_catalog_maps_asia_shanghai() {
   const homedeck::TimezoneInfo* info = homedeck::findTimezoneByIana("Asia/Shanghai");
 
@@ -214,5 +242,7 @@ int main(int, char**) {
   RUN_TEST(test_invalid_longitude_rejected);
   RUN_TEST(test_empty_latitude_longitude_allowed);
   RUN_TEST(test_malformed_latitude_rejected);
+  RUN_TEST(test_nan_latitude_rejected);
+  RUN_TEST(test_inf_longitude_rejected);
   return UNITY_END();
 }
