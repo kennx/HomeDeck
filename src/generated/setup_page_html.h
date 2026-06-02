@@ -1,4 +1,14 @@
-<!doctype html>
+#pragma once
+
+#ifdef ARDUINO
+#include <pgmspace.h>
+#else
+#define PROGMEM
+#endif
+
+namespace homedeck {
+
+const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -368,15 +378,15 @@
       </div>
       <div class="ap-status">
         <span class="badge badge-success">AP 运行中</span>
-        <span class="ap-info">热点: <strong>HomeDeck-ABCD</strong> / 192.168.4.1</span>
+        <span class="ap-info">热点: <strong>{{AP_SSID}}</strong> / 192.168.4.1</span>
       </div>
     </header>
 
-    <div id="error_container" class="callout callout-error" style="display:none;">
+    <div id="error_container" class="callout callout-error" style="{{ERROR_CONTAINER_STYLE}}">
       <svg class="callout-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
-      <p id="error_msg" class="msg"></p>
+      <p id="error_msg" class="msg">{{ERROR_MESSAGE}}</p>
     </div>
 
     <section class="card">
@@ -387,29 +397,7 @@
         可用 Wi-Fi 列表
       </h2>
       <div class="wifi-grid">
-        <!-- WIFI_GRID_ITEMS_TEMPLATE_START -->
-        <button type="button" class="wifi-pill" data-ssid="SmartHome_5G" data-sig="good">
-          <span>SmartHome_5G</span>
-          <div class="wifi-meta">
-            <div class="sig-bars"><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span></div>
-            -45 dBm
-          </div>
-        </button>
-        <button type="button" class="wifi-pill" data-ssid="Office-Guest" data-sig="mid">
-          <span>Office-Guest</span>
-          <div class="wifi-meta">
-            <div class="sig-bars"><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span></div>
-            -68 dBm
-          </div>
-        </button>
-        <button type="button" class="wifi-pill" data-ssid="TP-LINK_Old" data-sig="weak">
-          <span>TP-LINK_Old</span>
-          <div class="wifi-meta">
-            <div class="sig-bars"><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span></div>
-            -82 dBm
-          </div>
-        </button>
-        <!-- WIFI_GRID_ITEMS_TEMPLATE_END -->
+        {{WIFI_GRID_ITEMS}}
       </div>
     </section>
 
@@ -423,11 +411,11 @@
         </h2>
         <div class="form-group">
           <label for="wifi_ssid">Wi-Fi SSID</label>
-          <input id="wifi_ssid" name="wifi_ssid" value="" placeholder="请输入 SSID 或从上方选择">
+          <input id="wifi_ssid" name="wifi_ssid" value="{{WIFI_SSID}}" placeholder="请输入 SSID 或从上方选择">
         </div>
         <div class="form-group">
           <label for="wifi_password">Wi-Fi 密码</label>
-          <input id="wifi_password" name="wifi_password" type="password" value="" placeholder="请输入无线密码">
+          <input id="wifi_password" name="wifi_password" type="password" value="{{WIFI_PASSWORD}}" placeholder="请输入无线密码">
           <div class="form-group checkbox-group" style="margin-top:8px;">
             <input type="checkbox" id="show_password">
             <label for="show_password" style="margin-bottom:0;cursor:pointer;">显示密码</label>
@@ -436,20 +424,16 @@
         <div class="form-group">
           <label for="timezone">时区</label>
           <select id="timezone" name="timezone">
-            <!-- TIMEZONE_OPTION_ITEMS_TEMPLATE_START -->
-            <option value="Asia/Shanghai">Asia/Shanghai (上海)</option>
-            <option value="Asia/Tokyo">Asia/Tokyo (东京)</option>
-            <option value="America/New_York">America/New_York (纽约)</option>
-            <!-- TIMEZONE_OPTION_ITEMS_TEMPLATE_END -->
+            {{TIMEZONE_OPTION_ITEMS}}
           </select>
         </div>
         <div class="form-group checkbox-group">
-          <input id="auto_rtc" name="auto_rtc" type="checkbox" value="1" disabled>
+          <input id="auto_rtc" name="auto_rtc" type="checkbox" value="1" {{AUTO_RTC_CHECKED}} {{AUTO_RTC_DISABLED}}>
           <label for="auto_rtc">自动纠正 RTC</label>
         </div>
         <div class="form-group">
           <label for="ntp_server">NTP 服务器</label>
-          <input id="ntp_server" name="ntp_server" value="ntp.aliyun.com">
+          <input id="ntp_server" name="ntp_server" value="{{NTP_SERVER}}">
         </div>
         <div class="form-group">
           <label for="manual_datetime">手动日期时间</label>
@@ -467,11 +451,11 @@
         </h2>
         <div class="form-group">
           <label for="latitude">纬度</label>
-          <input id="latitude" name="latitude" value="" placeholder="例如: 31.2304">
+          <input id="latitude" name="latitude" value="{{LATITUDE}}" placeholder="例如: 31.2304">
         </div>
         <div class="form-group">
           <label for="longitude">经度</label>
-          <input id="longitude" name="longitude" value="" placeholder="例如: 121.4737">
+          <input id="longitude" name="longitude" value="{{LONGITUDE}}" placeholder="例如: 121.4737">
         </div>
         <div class="form-group">
           <label for="osm_link">OpenStreetMap 地图链接</label>
@@ -615,3 +599,6 @@
   </script>
 </body>
 </html>
+)raw";
+
+} // namespace homedeck
