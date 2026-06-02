@@ -11,6 +11,8 @@ struct SetupConfig {
   std::string timezoneIana = "Asia/Shanghai";
   bool autoRtcCorrection = false;
   std::string ntpServer = "pool.ntp.org";
+  std::string latitude;
+  std::string longitude;
 };
 
 struct ManualDateTime {
@@ -34,6 +36,8 @@ enum class ConfigValidationError {
   MissingNtpServer,
   InvalidManualDateTime,
   InvalidTimezone,
+  InvalidLatitude,
+  InvalidLongitude,
 };
 
 struct ConfigValidationResult {

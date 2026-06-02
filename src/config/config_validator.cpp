@@ -48,6 +48,26 @@ ConfigValidationResult makeError(ConfigValidationError error, const char* messag
 
 }  // namespace
 
+bool parseLatitude(std::string_view value, double* out) {
+  if (value.empty()) return true;
+  char* end = nullptr;
+  const double d = std::strtod(std::string(value).c_str(), &end);
+  if (*end != '\0') return false;
+  if (d < -90.0 || d > 90.0) return false;
+  if (out) *out = d;
+  return true;
+}
+
+bool parseLongitude(std::string_view value, double* out) {
+  if (value.empty()) return true;
+  char* end = nullptr;
+  const double d = std::strtod(std::string(value).c_str(), &end);
+  if (*end != '\0') return false;
+  if (d < -180.0 || d > 180.0) return false;
+  if (out) *out = d;
+  return true;
+}
+
 bool parseManualDateTime(std::string_view value, ManualDateTime* out) {
   if (out == nullptr) {
     return false;
@@ -129,6 +149,13 @@ ConfigValidationResult validateSetupSubmission(
 
   if (hasWifi && !config.autoRtcCorrection && !manualDateTime.present) {
     return makeError(ConfigValidationError::MissingManualDateTime, "关闭自动纠正时必须填写手动时间。");
+  }
+
+  if (!parseLatitude(config.latitude, nullptr)) {
+    return makeError(ConfigValidationError::InvalidLatitude, "纬度格式无效（范围：-90 ~ 90）。");
+  }
+  if (!parseLongitude(config.longitude, nullptr)) {
+    return makeError(ConfigValidationError::InvalidLongitude, "经度格式无效（范围：-180 ~ 180）。");
   }
 
   return ConfigValidationResult{};
