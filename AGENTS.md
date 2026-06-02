@@ -9,25 +9,26 @@
 - 从第一性原理出发。基于真实硬件约束、代码事实和验证结果进行思考；如果目标不明确，先与用户讨论。
 - 将代码而非文档视为真理之源。除非用户明确要求，否则不要为了理解实现而阅读普通 Markdown 文档。
 - 在修改代码前，先阅读相关代码和最新的约束，并遵循目录树中最近的 `AGENTS.md`。
+- 写代码前如果你对当前时间不确定，通过类似 `date` 的命令来确定当前的时间，结合你的知识年份，对不确定的问题要使用工具确认、核实。
 - 保持修改聚焦。不要顺带进行无关重构。
 - 嵌入式优先：始终考虑内存占用、功耗和硬件约束。
 - 彩色墨水屏约束：本设备使用 E Ink Spectra 6（六色：黑、白、红、黄、蓝、绿），非全 RGB 色域。UI 设计避免渐变、半透明、复杂混色；刷新代价高且伴随闪烁，禁止动画和频繁重绘；追求"一次刷好、长期保持"以配合深度睡眠实现零功耗静态显示。
 
 ## 项目地图
 
-- `src/main.cpp`：入口点。在基础硬件初始化后委托给 `app_runtime.cpp`。
-- `src/app_runtime.cpp/h`：应用生命周期（`appSetup`、`appLoop`）。负责编排各子系统。
-- `src/boot_controller.cpp/h`：启动模式决策逻辑（配置模式 vs 系统模式、设置快捷键、睡眠调度）。
-- `src/home_renderer.cpp/h`：电子墨水屏渲染——主 UI。尽量减少绘图操作；避免不必要的刷新。
-- `src/config_*.cpp/h`：配置子系统（类型、存储、验证、门户）。持久化状态保存在 NVS/LittleFS 中。
-- `src/time_service.cpp/h`、`src/timezone_catalog.cpp/h`、`src/almanac_provider.cpp/h`：时间和日历支持。
-- `src/wifi_connection.cpp/h`：WiFi 连接管理。
-- `src/sht40_reader.cpp/h`：温湿度传感器接口。
-- `src/setup_page.cpp/h`：配置模式下提供的基于 Web 的配置 UI。
-- `src/generated/`：自动生成资源（设备字体）。请勿手动编辑。
+- `src/app/main.cpp`：入口点。在基础硬件初始化后委托给 `app_runtime.cpp`。
+- `src/app/app_runtime.cpp/h`：应用生命周期（`appSetup`、`appLoop`）。负责编排各子系统。
+- `src/app/boot_controller.cpp/h`：启动模式决策逻辑（配置模式 vs 系统模式、设置快捷键、睡眠调度）。
+- `src/app/view_manager.cpp/h`：视图路由与切换管理。
+- `src/views/home_renderer.cpp/h`：电子墨水屏渲染——主 UI。尽量减少绘图操作；避免不必要的刷新。
+- `src/views/`：其他视图组件（`almanac_view`、`calendar_view`、`countdown_view`、`view_common`）。
+- `src/config/`：配置子系统（`config_types`、`config_store`、`config_validator`、`config_portal`、`setup_page`）。持久化状态保存在 NVS/LittleFS 中。
+- `src/system/`：系统服务（`time_service`、`wifi_connection`、`sht40_reader`、`render_context`）。
+- `src/providers/`：数据提供者（`almanac_provider`、`timezone_catalog`）。
+- `src/generated/`：自动生成资源（设备字体、设置页 HTML）。请勿手动编辑。
 - `test/native/`：使用 Unity 框架的本机（宿主机）单元测试。
 - `tools/`：用于生成年鉴数据和设备字体的 Python 脚本。
-- `docs/PaperColor.md`：这台设备的文档查，询设备信息、GPIO…… 
+- `docs/PaperColor.md`：这台设备的文档查询、设备信息、GPIO…… 
 
 ## 环境要求
 
