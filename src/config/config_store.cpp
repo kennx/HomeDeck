@@ -11,6 +11,8 @@ constexpr const char* kAutoRtc = "auto_rtc";
 constexpr const char* kNtpServer = "ntp";
 constexpr const char* kConfigured = "configured";
 constexpr const char* kForceConfig = "force_cfg";
+constexpr const char* kLatitude = "lat";
+constexpr const char* kLongitude = "lon";
 
 }  // namespace
 
@@ -26,6 +28,8 @@ SetupConfig ConfigStore::loadSetupConfig() const {
   config.timezoneIana = prefs_.getString(kTimezoneIana, "Asia/Shanghai").c_str();
   config.autoRtcCorrection = prefs_.getBool(kAutoRtc, false);
   config.ntpServer = prefs_.getString(kNtpServer, "pool.ntp.org").c_str();
+  config.latitude = prefs_.getString(kLatitude, "31.2304").c_str();
+  config.longitude = prefs_.getString(kLongitude, "121.4737").c_str();
   return config;
 }
 
@@ -40,7 +44,9 @@ bool ConfigStore::saveSetupConfig(const SetupConfig& config) {
   const bool timezoneOk = prefs_.putString(kTimezoneIana, config.timezoneIana.c_str()) > 0;
   const bool ntpOk = prefs_.putString(kNtpServer, config.ntpServer.c_str()) > 0 || config.ntpServer.empty();
   const bool boolOk = prefs_.putBool(kAutoRtc, config.autoRtcCorrection);
-  return stringsOk && passwordOk && timezoneOk && ntpOk && boolOk;
+  const bool latOk = prefs_.putString(kLatitude, config.latitude.c_str()) > 0 || config.latitude.empty();
+  const bool lonOk = prefs_.putString(kLongitude, config.longitude.c_str()) > 0 || config.longitude.empty();
+  return stringsOk && passwordOk && timezoneOk && ntpOk && boolOk && latOk && lonOk;
 }
 
 BootFlags ConfigStore::loadBootFlags() const {
