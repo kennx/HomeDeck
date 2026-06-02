@@ -70,10 +70,9 @@ void test_setup_page_contains_location_fields() {
 
   TEST_ASSERT_NOT_EQUAL(-1, html.find("name=\"latitude\""));
   TEST_ASSERT_NOT_EQUAL(-1, html.find("name=\"longitude\""));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("id=\"get_location\""));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("navigator.geolocation"));
   TEST_ASSERT_NOT_EQUAL(-1, html.find("31.2304"));
   TEST_ASSERT_NOT_EQUAL(-1, html.find("121.4737"));
+  TEST_ASSERT_EQUAL(std::string::npos, html.find("navigator.geolocation"));
 }
 
 int main(int, char**) {
