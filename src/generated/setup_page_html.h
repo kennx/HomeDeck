@@ -278,6 +278,9 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
       margin-bottom: var(--space-sm);
     }
     .form-group input:not([type="checkbox"]), .form-group select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
       width: 100%;
       min-width: 0;
       padding: 10px 14px;
@@ -290,8 +293,6 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
       outline: none;
     }
     .form-group select {
-      appearance: none;
-      -webkit-appearance: none;
       background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234B5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
       background-repeat: no-repeat;
       background-position: right 12px center;
@@ -355,7 +356,6 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
       .wifi-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
       .wifi-pill { padding: 6px 10px; font-size: 12px; }
       .form-group input:not([type="checkbox"]), .form-group select {
-        padding: 10px 8px;
         font-size: 13px;
         max-width: 100%;
       }
