@@ -42,6 +42,7 @@
       --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 16px 24px -4px rgba(0, 0, 0, 0.04);
       --shadow-focus: 0 0 0 3px rgba(79, 70, 229, 0.15);
       --transition-fast: 0.15s ease;
+      --primary-color-rgb: 79, 70, 229;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -200,34 +201,36 @@
       color: var(--primary-color);
     }
     /* Custom pure CSS Signal Icon */
-    .sig-icon {
+    .sig-bars {
       display: inline-flex;
       align-items: flex-end;
       gap: 2px;
-      width: 12px;
-      height: 8px;
+      width: 14px;
+      height: 10px;
+      flex-shrink: 0;
     }
-    .sig-bar {
+    .sig-bars .sig-bar {
       width: 2px;
-      background-color: #D1D5DB;
+      background-color: var(--bg-disabled);
       border-radius: 1px;
+      transition: background-color var(--transition-fast);
     }
-    .sig-bar-1 { height: 30%; }
-    .sig-bar-2 { height: 65%; }
-    .sig-bar-3 { height: 100%; }
+    .sig-bars .sig-bar:nth-child(1) { height: 25%; }
+    .sig-bars .sig-bar:nth-child(2) { height: 50%; }
+    .sig-bars .sig-bar:nth-child(3) { height: 75%; }
+    .sig-bars .sig-bar:nth-child(4) { height: 100%; }
     .wifi-pill:hover .sig-bar, .wifi-pill.active .sig-bar {
       background-color: var(--primary-color);
     }
-    .wifi-pill[data-sig="good"] .sig-bar-1,
-    .wifi-pill[data-sig="good"] .sig-bar-2,
-    .wifi-pill[data-sig="good"] .sig-bar-3 {
+    .wifi-pill[data-sig="good"] .sig-bar {
       background-color: var(--color-success);
     }
-    .wifi-pill[data-sig="mid"] .sig-bar-1,
-    .wifi-pill[data-sig="mid"] .sig-bar-2 {
+    .wifi-pill[data-sig="mid"] .sig-bar:nth-child(1),
+    .wifi-pill[data-sig="mid"] .sig-bar:nth-child(2),
+    .wifi-pill[data-sig="mid"] .sig-bar:nth-child(3) {
       background-color: #F59E0B;
     }
-    .wifi-pill[data-sig="weak"] .sig-bar-1 {
+    .wifi-pill[data-sig="weak"] .sig-bar:nth-child(1) {
       background-color: var(--color-error);
     }
     form {
@@ -307,6 +310,7 @@
       cursor: pointer;
       transition: all var(--transition-fast);
       box-shadow: 0 4px 6px -1px rgba(var(--primary-color-rgb), 0.2);
+      width: 100%;
       margin-top: 16px;
       margin-bottom: 24px;
     }
@@ -386,21 +390,21 @@
         <button type="button" class="wifi-pill" data-ssid="SmartHome_5G" data-sig="good">
           <span>SmartHome_5G</span>
           <div class="wifi-meta">
-            <div class="sig-icon" data-sig="good"><span class="sig-bar sig-bar-1"></span><span class="sig-bar sig-bar-2"></span><span class="sig-bar sig-bar-3"></span></div>
+            <div class="sig-bars"><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span></div>
             -45 dBm
           </div>
         </button>
         <button type="button" class="wifi-pill" data-ssid="Office-Guest" data-sig="mid">
           <span>Office-Guest</span>
           <div class="wifi-meta">
-            <div class="sig-icon" data-sig="mid"><span class="sig-bar sig-bar-1"></span><span class="sig-bar sig-bar-2"></span><span class="sig-bar sig-bar-3"></span></div>
+            <div class="sig-bars"><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span></div>
             -68 dBm
           </div>
         </button>
         <button type="button" class="wifi-pill" data-ssid="TP-LINK_Old" data-sig="weak">
           <span>TP-LINK_Old</span>
           <div class="wifi-meta">
-            <div class="sig-icon" data-sig="weak"><span class="sig-bar sig-bar-1"></span><span class="sig-bar sig-bar-2"></span><span class="sig-bar sig-bar-3"></span></div>
+            <div class="sig-bars"><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span><span class="sig-bar"></span></div>
             -82 dBm
           </div>
         </button>
