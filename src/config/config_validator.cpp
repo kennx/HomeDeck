@@ -34,12 +34,27 @@ int daysInMonth(int year, int month) {
 }
 
 bool isBlank(std::string_view value) {
-  for (const unsigned char ch : value) {
-    if (ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r') {
-      return false;
-    }
+  std::size_t start = 0;
+  while (start < value.size() && (value[start] == ' ' || value[start] == '\t' || value[start] == '\n' || value[start] == '\r')) {
+    ++start;
   }
-  return true;
+  std::size_t end = value.size();
+  while (end > start && (value[end - 1] == ' ' || value[end - 1] == '\t' || value[end - 1] == '\n' || value[end - 1] == '\r')) {
+    --end;
+  }
+  return start == end;
+}
+
+std::string_view trim(std::string_view value) {
+  std::size_t start = 0;
+  while (start < value.size() && (value[start] == ' ' || value[start] == '\t' || value[start] == '\n' || value[start] == '\r')) {
+    ++start;
+  }
+  std::size_t end = value.size();
+  while (end > start && (value[end - 1] == ' ' || value[end - 1] == '\t' || value[end - 1] == '\n' || value[end - 1] == '\r')) {
+    --end;
+  }
+  return value.substr(start, end - start);
 }
 
 ConfigValidationResult makeError(ConfigValidationError error, const char* message) {
@@ -49,9 +64,10 @@ ConfigValidationResult makeError(ConfigValidationError error, const char* messag
 }  // namespace
 
 bool parseLatitude(std::string_view value, double* out) {
-  if (value.empty()) return true;
+  const std::string_view trimmed = trim(value);
+  if (trimmed.empty()) return true;
   char* end = nullptr;
-  const double d = std::strtod(std::string(value).c_str(), &end);
+  const double d = std::strtod(std::string(trimmed).c_str(), &end);
   if (*end != '\0') return false;
   if (!(d >= -90.0 && d <= 90.0)) return false;
   if (out) *out = d;
@@ -59,9 +75,10 @@ bool parseLatitude(std::string_view value, double* out) {
 }
 
 bool parseLongitude(std::string_view value, double* out) {
-  if (value.empty()) return true;
+  const std::string_view trimmed = trim(value);
+  if (trimmed.empty()) return true;
   char* end = nullptr;
-  const double d = std::strtod(std::string(value).c_str(), &end);
+  const double d = std::strtod(std::string(trimmed).c_str(), &end);
   if (*end != '\0') return false;
   if (!(d >= -180.0 && d <= 180.0)) return false;
   if (out) *out = d;
