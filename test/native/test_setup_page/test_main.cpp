@@ -73,6 +73,10 @@ void test_setup_page_contains_location_fields() {
   TEST_ASSERT_NOT_EQUAL(-1, html.find("31.2304"));
   TEST_ASSERT_NOT_EQUAL(-1, html.find("121.4737"));
   TEST_ASSERT_EQUAL(std::string::npos, html.find("navigator.geolocation"));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("id=\"osm_link\""));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("class=\"hint\""));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("openstreetmap.org"));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("match(/#map=[0-9]+"));
 }
 
 int main(int, char**) {
