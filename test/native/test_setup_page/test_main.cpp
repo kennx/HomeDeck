@@ -58,11 +58,30 @@ void test_setup_page_does_not_embed_ssid_in_inline_javascript() {
   TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("data-ssid=\"Bob&#39;s WiFi\""));
 }
 
+void test_setup_page_contains_location_fields() {
+  homedeck::SetupConfig config{};
+  config.timezoneIana = "Asia/Shanghai";
+  config.ntpServer = "pool.ntp.org";
+  config.latitude = "31.2304";
+  config.longitude = "121.4737";
+  std::vector<homedeck::WifiNetwork> networks{};
+
+  const std::string html = homedeck::buildSetupPageHtml("HomeDeck-ABCD", config, networks, "");
+
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("name=\"latitude\""));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("name=\"longitude\""));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("id=\"get_location\""));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("navigator.geolocation"));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("31.2304"));
+  TEST_ASSERT_NOT_EQUAL(-1, html.find("121.4737"));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_select_top_five_wifi_networks_by_rssi);
   RUN_TEST(test_setup_page_contains_wifi_list_timezone_and_disabled_auto_when_ssid_empty);
   RUN_TEST(test_setup_page_shows_error_message);
   RUN_TEST(test_setup_page_does_not_embed_ssid_in_inline_javascript);
+  RUN_TEST(test_setup_page_contains_location_fields);
   return UNITY_END();
 }
