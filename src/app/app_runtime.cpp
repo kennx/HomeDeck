@@ -318,7 +318,14 @@ BootControllerDeps makeBootDeps() {
   deps.setForceConfigOnNextBoot = []() { return gConfigStore.setForceConfigOnNextBoot(true); };
   deps.startConfigPortal = []() {
     const std::string apSsid = makeApSsid();
-    gConfigPortal.begin(apSsid, gConfigStore.loadSetupConfig(), saveSubmittedConfig);
+    auto batteryProvider = []() -> std::string {
+      const std::int32_t level = M5.Power.getBatteryLevel();
+      if (level < 0) {
+        return "";
+      }
+      return std::string("电量: ") + std::to_string(level) + "%";
+    };
+    gConfigPortal.begin(apSsid, gConfigStore.loadSetupConfig(), saveSubmittedConfig, batteryProvider);
     gHomeRenderer.renderConfigPortal(apSsid, softApIpAddress());
   };
   deps.handleConfigPortalClient = []() { gConfigPortal.handleClient(); };

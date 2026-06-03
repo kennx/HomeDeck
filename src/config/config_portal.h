@@ -14,13 +14,15 @@ namespace homedeck {
 using ConfigPortalSaveCallback = std::function<ConfigValidationResult(
     const SetupConfig& config,
     const ManualDateTime& manualDateTime)>;
+using ConfigPortalBatteryProvider = std::function<std::string()>;
 
 class ConfigPortal {
  public:
   void begin(
       const std::string& apSsid,
       const SetupConfig& defaults,
-      ConfigPortalSaveCallback onSave);
+      ConfigPortalSaveCallback onSave,
+      ConfigPortalBatteryProvider batteryProvider = nullptr);
   void handleClient();
 
  private:
@@ -39,6 +41,7 @@ class ConfigPortal {
   SetupConfig defaults_{};
   std::vector<WifiNetwork> networks_;
   ConfigPortalSaveCallback onSave_;
+  ConfigPortalBatteryProvider batteryProvider_;
   bool restartScheduled_ = false;
   unsigned long restartAtMs_ = 0;
 };

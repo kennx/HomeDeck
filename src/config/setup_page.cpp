@@ -62,11 +62,21 @@ std::string buildSetupPageHtml(
     const std::string& apSsid,
     const SetupConfig& values,
     const std::vector<WifiNetwork>& networks,
-    const std::string& message) {
+    const std::string& message,
+    const std::string& batteryInfo) {
   std::string html(SETUP_PAGE_TEMPLATE);
 
   // 1. 替换热点名 AP_SSID
   html = replaceAll(html, "{{AP_SSID}}", htmlEscape(apSsid));
+
+  // 1.5 替换电池信息显示样式和内容
+  if (!batteryInfo.empty()) {
+    html = replaceAll(html, "{{BATTERY_INFO_STYLE}}", "display:flex;");
+    html = replaceAll(html, "{{BATTERY_INFO}}", htmlEscape(batteryInfo));
+  } else {
+    html = replaceAll(html, "{{BATTERY_INFO_STYLE}}", "display:none;");
+    html = replaceAll(html, "{{BATTERY_INFO}}", "");
+  }
 
   // 2. 替换动态的 Wi-Fi 网格列表
   std::ostringstream wifiGrid;

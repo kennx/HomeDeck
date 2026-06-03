@@ -20,10 +20,12 @@ const IPAddress kSoftApSubnet{255, 255, 255, 0};
 void ConfigPortal::begin(
     const std::string& apSsid,
     const SetupConfig& defaults,
-    ConfigPortalSaveCallback onSave) {
+    ConfigPortalSaveCallback onSave,
+    ConfigPortalBatteryProvider batteryProvider) {
   apSsid_ = apSsid;
   defaults_ = defaults;
   onSave_ = std::move(onSave);
+  batteryProvider_ = std::move(batteryProvider);
   restartScheduled_ = false;
   restartAtMs_ = 0;
 
@@ -128,7 +130,8 @@ void ConfigPortal::registerCaptivePortalRoutes() {
 }
 
 void ConfigPortal::sendPage(int status, const SetupConfig& values, const std::string& message) {
-  const std::string html = buildSetupPageHtml(apSsid_, values, networks_, message);
+  const std::string batteryInfo = batteryProvider_ ? batteryProvider_() : "";
+  const std::string html = buildSetupPageHtml(apSsid_, values, networks_, message, batteryInfo);
   server_.send(status, "text/html; charset=utf-8", html.c_str());
 }
 

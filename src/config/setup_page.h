@@ -15,6 +15,7 @@ std::string buildSetupPageHtml(
     const std::string& apSsid,
     const SetupConfig& values,
     const std::vector<WifiNetwork>& networks,
-    const std::string& message);
+    const std::string& message,
+    const std::string& batteryInfo = "");
 
 }  // namespace homedeck

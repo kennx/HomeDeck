@@ -13,7 +13,7 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HomeDeck Setup Preview</title>
+  <title>HomeDeck Setup</title>
   <style>
     :root {
       /* Colors */
@@ -53,6 +53,8 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
       --shadow-focus: 0 0 0 3px rgba(79, 70, 229, 0.15);
       --transition-fast: 0.15s ease;
       --primary-color-rgb: 79, 70, 229;
+      --bg-disabled: #E5E7EB;
+      --text-muted: #9CA3AF;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -122,6 +124,20 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
     .ap-info {
       font-size: 14px;
       color: var(--text-secondary);
+    }
+    .battery-info {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-top: var(--space-xs);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .battery-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--color-success);
+      flex-shrink: 0;
     }
     .callout {
       padding: var(--space-md);
@@ -251,22 +267,26 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
     .form-group {
       margin-bottom: var(--space-md);
     }
-    .form-group.checkbox-group {
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+    .checkbox-wrapper {
       display: flex;
       align-items: center;
       gap: var(--space-sm);
       cursor: pointer;
       user-select: none;
       margin-top: var(--space-md);
+      margin-bottom: var(--space-md);
     }
-    .form-group.checkbox-group input[type="checkbox"] {
+    .checkbox-wrapper input[type="checkbox"] {
       width: 16px;
       height: 16px;
       accent-color: var(--primary-color);
       margin-top: 0;
       cursor: pointer;
     }
-    .form-group.checkbox-group label {
+    .checkbox-wrapper label {
       margin-bottom: 0;
       cursor: pointer;
     }
@@ -309,6 +329,12 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
       background-color: var(--bg-disabled);
       color: var(--text-tertiary);
       cursor: not-allowed;
+      opacity: 1;
+      -webkit-text-fill-color: var(--text-tertiary);
+    }
+    .form-group input[type="datetime-local"]:disabled {
+      opacity: 1;
+      -webkit-text-fill-color: var(--text-tertiary);
     }
     .btn-submit {
       background-color: var(--primary-color);
@@ -351,8 +377,7 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
     @media (max-width: 640px) {
       body { padding: 16px 12px; }
       .card { padding: 16px; border-radius: 12px; }
-      .banner { padding: 16px; border-radius: 12px; }
-      .banner-title { font-size: 18px; }
+
       .wifi-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
       .wifi-pill { padding: 6px 10px; font-size: 12px; }
       .form-group input:not([type="checkbox"]), .form-group select {
@@ -379,6 +404,13 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
       <div class="ap-status">
         <span class="badge badge-success">AP 运行中</span>
         <span class="ap-info">热点: <strong>{{AP_SSID}}</strong> / 192.168.4.1</span>
+      </div>
+      <div class="battery-info" style="{{BATTERY_INFO_STYLE}}">
+        <svg class="battery-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10v10a2 2 0 002 2h14a2 2 0 002-2V10a2 2 0 00-2-2h-1V7a2 2 0 00-2-2H6a2 2 0 00-2 2v1H3a2 2 0 00-2 2z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 13v4" />
+        </svg>
+        <span>{{BATTERY_INFO}}</span>
       </div>
     </header>
 
@@ -416,7 +448,7 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
         <div class="form-group">
           <label for="wifi_password">Wi-Fi 密码</label>
           <input id="wifi_password" name="wifi_password" type="password" value="{{WIFI_PASSWORD}}" placeholder="请输入无线密码">
-          <div class="form-group checkbox-group" style="margin-top:8px;">
+          <div class="checkbox-wrapper" style="margin-top:8px;">
             <input type="checkbox" id="show_password">
             <label for="show_password" style="margin-bottom:0;cursor:pointer;">显示密码</label>
           </div>
@@ -427,7 +459,7 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
             {{TIMEZONE_OPTION_ITEMS}}
           </select>
         </div>
-        <div class="form-group checkbox-group">
+        <div class="checkbox-wrapper">
           <input id="auto_rtc" name="auto_rtc" type="checkbox" value="1" {{AUTO_RTC_CHECKED}} {{AUTO_RTC_DISABLED}}>
           <label for="auto_rtc">自动纠正 RTC</label>
         </div>
@@ -554,7 +586,6 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
         latInput.classList.remove('highlight-flash');
         lonInput.classList.remove('highlight-flash');
         void latInput.offsetWidth;
-        void lonInput.offsetWidth;
         latInput.classList.add('highlight-flash');
         lonInput.classList.add('highlight-flash');
         errCallout.style.display = 'none';
