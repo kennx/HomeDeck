@@ -406,9 +406,9 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
         <span class="ap-info">热点: <strong>{{AP_SSID}}</strong> / 192.168.4.1</span>
       </div>
       <div class="battery-info" style="{{BATTERY_INFO_STYLE}}">
-        <svg class="battery-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10v10a2 2 0 002 2h14a2 2 0 002-2V10a2 2 0 00-2-2h-1V7a2 2 0 00-2-2H6a2 2 0 00-2 2v1H3a2 2 0 00-2 2z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 13v4" />
+        <svg class="battery-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="6" width="14" height="12" rx="2" />
+          <path d="M20 11v2M7 10v4M11 10v4M15 10v4" />
         </svg>
         <span>{{BATTERY_INFO}}</span>
       </div>
