@@ -30,13 +30,13 @@ void test_setup_page_contains_wifi_list_timezone_and_disabled_auto_when_ssid_emp
 
   const std::string html = homedeck::buildSetupPageHtml("HomeDeck-ABCD", config, networks, "");
 
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("HomeDeck-ABCD"));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("Home"));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("Cafe"));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("Asia/Shanghai"));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("name=\"auto_rtc\""));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("disabled"));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("name=\"manual_datetime\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("HomeDeck-ABCD"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("Home"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("Cafe"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("Asia/Shanghai"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("name=\"auto_rtc\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("disabled"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("name=\"manual_datetime\""));
 }
 
 void test_setup_page_shows_error_message() {
@@ -45,7 +45,7 @@ void test_setup_page_shows_error_message() {
 
   const std::string html = homedeck::buildSetupPageHtml("HomeDeck-ABCD", config, networks, "请填写手动时间。");
 
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("请填写手动时间。"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("请填写手动时间。"));
 }
 
 void test_setup_page_does_not_embed_ssid_in_inline_javascript() {
@@ -68,15 +68,15 @@ void test_setup_page_contains_location_fields() {
 
   const std::string html = homedeck::buildSetupPageHtml("HomeDeck-ABCD", config, networks, "");
 
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("name=\"latitude\""));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("name=\"longitude\""));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("31.2304"));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("121.4737"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("name=\"latitude\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("name=\"longitude\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("31.2304"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("121.4737"));
   TEST_ASSERT_EQUAL(std::string::npos, html.find("navigator.geolocation"));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("id=\"osm_link\""));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("class=\"hint\""));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("openstreetmap.org"));
-  TEST_ASSERT_NOT_EQUAL(-1, html.find("match(/#map=[0-9.]+"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("id=\"osm_link\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("class=\"hint\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("openstreetmap.org"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, html.find("match(/#map=[0-9.]+"));
 }
 
 int main(int, char**) {

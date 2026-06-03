@@ -33,18 +33,6 @@ int daysInMonth(int year, int month) {
   }
 }
 
-bool isBlank(std::string_view value) {
-  std::size_t start = 0;
-  while (start < value.size() && (value[start] == ' ' || value[start] == '\t' || value[start] == '\n' || value[start] == '\r')) {
-    ++start;
-  }
-  std::size_t end = value.size();
-  while (end > start && (value[end - 1] == ' ' || value[end - 1] == '\t' || value[end - 1] == '\n' || value[end - 1] == '\r')) {
-    --end;
-  }
-  return start == end;
-}
-
 std::string_view trim(std::string_view value) {
   std::size_t start = 0;
   while (start < value.size() && (value[start] == ' ' || value[start] == '\t' || value[start] == '\n' || value[start] == '\r')) {
@@ -55,6 +43,10 @@ std::string_view trim(std::string_view value) {
     --end;
   }
   return value.substr(start, end - start);
+}
+
+bool isBlank(std::string_view value) {
+  return trim(value).empty();
 }
 
 ConfigValidationResult makeError(ConfigValidationError error, const char* message) {

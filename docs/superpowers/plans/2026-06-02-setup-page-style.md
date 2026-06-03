@@ -606,6 +606,8 @@
 
 ---
 
+> **Implementation Note:** The actual implementation diverged from the original plan below. Instead of inline `std::ostringstream` concatenation, the code uses a template-replacement architecture: `scratch/preview.html` is synchronized at build time to `src/generated/setup_page_html.h` via `tools/sync_preview.py`, and `src/config/setup_page.cpp` performs placeholder substitution. This approach is more maintainable and allows browser-based iteration without reflashing.
+
 ### Task 2: 重新设计并替换 C++ 端的 HTML 骨架与 CSS Tokens (Implement CSS & HTML Skeleton)
 
 本任务将在固件源代码中集成我们在 Task 1 中完美通过验证的 UI 界面和 CSS Tokens。

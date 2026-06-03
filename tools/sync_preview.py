@@ -35,13 +35,24 @@ def main():
     content = content.replace('id="error_container" class="callout callout-error" style="display:none;"', 'id="error_container" class="callout callout-error" style="{{ERROR_CONTAINER_STYLE}}"')
     content = content.replace('<p id="error_msg" class="msg"></p>', '<p id="error_msg" class="msg">{{ERROR_MESSAGE}}</p>')
     
-    # 替换表单控件 values 默认值
-    content = content.replace('id="wifi_ssid" name="wifi_ssid" value=""', 'id="wifi_ssid" name="wifi_ssid" value="{{WIFI_SSID}}"')
-    content = content.replace('id="wifi_password" name="wifi_password" type="password" value=""', 'id="wifi_password" name="wifi_password" type="password" value="{{WIFI_PASSWORD}}"')
-    content = content.replace('id="auto_rtc" name="auto_rtc" type="checkbox" value="1" disabled', 'id="auto_rtc" name="auto_rtc" type="checkbox" value="1" {{AUTO_RTC_CHECKED}} {{AUTO_RTC_DISABLED}}')
-    content = content.replace('id="ntp_server" name="ntp_server" value="ntp.aliyun.com"', 'id="ntp_server" name="ntp_server" value="{{NTP_SERVER}}"')
-    content = content.replace('id="latitude" name="latitude" value=""', 'id="latitude" name="latitude" value="{{LATITUDE}}"')
-    content = content.replace('id="longitude" name="longitude" value=""', 'id="longitude" name="longitude" value="{{LONGITUDE}}"')
+    # 替换表单控件 values 默认值（使用正则提高容错性）
+    content = re.sub(r'id="wifi_ssid"\s+name="wifi_ssid"\s+value=""', 'id="wifi_ssid" name="wifi_ssid" value="{{WIFI_SSID}}"', content)
+    content = re.sub(r'id="wifi_password"\s+name="wifi_password"\s+type="password"\s+value=""', 'id="wifi_password" name="wifi_password" type="password" value="{{WIFI_PASSWORD}}"', content)
+    content = re.sub(r'id="auto_rtc"\s+name="auto_rtc"\s+type="checkbox"\s+value="1"\s+disabled', 'id="auto_rtc" name="auto_rtc" type="checkbox" value="1" {{AUTO_RTC_CHECKED}} {{AUTO_RTC_DISABLED}}', content)
+    content = re.sub(r'id="ntp_server"\s+name="ntp_server"\s+value="ntp\.aliyun\.com"', 'id="ntp_server" name="ntp_server" value="{{NTP_SERVER}}"', content)
+    content = re.sub(r'id="latitude"\s+name="latitude"\s+value=""', 'id="latitude" name="latitude" value="{{LATITUDE}}"', content)
+    content = re.sub(r'id="longitude"\s+name="longitude"\s+value=""', 'id="longitude" name="longitude" value="{{LONGITUDE}}"', content)
+    
+    # 写入前断言所有占位符均已正确注入
+    required_placeholders = [
+        '{{AP_SSID}}', '{{WIFI_GRID_ITEMS}}', '{{TIMEZONE_OPTION_ITEMS}}',
+        '{{ERROR_CONTAINER_STYLE}}', '{{ERROR_MESSAGE}}', '{{WIFI_SSID}}',
+        '{{WIFI_PASSWORD}}', '{{NTP_SERVER}}', '{{LATITUDE}}', '{{LONGITUDE}}',
+        '{{AUTO_RTC_CHECKED}}', '{{AUTO_RTC_DISABLED}}'
+    ]
+    missing = [ph for ph in required_placeholders if ph not in content]
+    if missing:
+        raise RuntimeError(f"sync_preview.py: missing placeholders after replacement: {missing}")
 
     # 生成 C++ 原始字符串字面量头文件 (加入跨平台条件编译保护，支持宿主机 native 单元测试运行)
     header_content = f"""#pragma once

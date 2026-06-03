@@ -18,3 +18,4 @@ except Exception as e:
         subprocess.check_call(["python3", sync_script])
     except Exception as e2:
         print(f"Fallback to python3 also failed: {e2}")
+        sys.exit(1)
