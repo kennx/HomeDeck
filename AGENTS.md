@@ -21,9 +21,8 @@
 - `src/app/app_runtime.cpp/h`：应用生命周期（`appSetup`、`appLoop`）。负责编排各子系统。
 - `src/app/boot_controller.cpp/h`：启动模式决策逻辑（配置模式 vs 系统模式、设置快捷键、睡眠调度）。
 - `src/app/view_manager.cpp/h`：视图路由与切换管理。
-- `src/views/home_renderer.cpp/h`：配置门户页面渲染（二维码、AP 信息）。`render()`/`renderCalendar()` 为向后兼容的委托包装，实际实现已分别在 `AlmanacView`/`CalendarView` 中。
 - `src/views/`：视图组件。`almanac_view` 为主 UI；`calendar_view`、`countdown_view`、`weather_view` 为其他视图；`view_common` 为共享渲染工具（状态栏、时间格式化等）。
-- `src/config/`：配置子系统（`config_types`、`config_store`、`config_validator`、`config_portal`、`setup_page`）。持久化状态保存在 NVS/LittleFS 中。
+- `src/config/`：配置子系统（`config_types`、`config_store`、`config_validator`、`config_portal`、`setup_page`、`config_portal_renderer`）。持久化状态保存在 NVS/LittleFS 中；`config_portal_renderer` 负责配置门户的墨水屏页面渲染（二维码、AP 信息、Logo）。
 - `src/system/`：系统服务（`time_service`、`wifi_connection`、`sht40_reader`、`render_context`）。
 - `src/providers/`：数据提供者（`almanac_provider`、`timezone_catalog`、`weather_provider`）。
 - `src/generated/`：自动生成资源（设备字体、设置页 HTML）。请勿手动编辑。
