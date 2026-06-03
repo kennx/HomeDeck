@@ -20,7 +20,7 @@ void test_fetch_weather_success() {
   
   deps.connectWifi = [&](const std::string& ssid, const std::string& pass) {
     wifiConnected = (ssid == "MySSID" && pass == "MyPass");
-    return true;
+    return wifiConnected;
   };
   deps.disconnectWifi = [&]() {
     wifiDisconnected = true;
@@ -76,11 +76,86 @@ void test_fetch_weather_http_fail() {
   TEST_ASSERT_FALSE(result.ok);
 }
 
+void test_fetch_weather_malformed_json() {
+  homedeck::WeatherProviderDeps deps;
+  deps.connectWifi = [](const std::string&, const std::string&) { return true; };
+  deps.disconnectWifi = []() {};
+  deps.httpGet = [](const std::string&) -> std::pair<int, std::string> { return {200, "not json"}; };
+  
+  auto result = homedeck::fetchWeather(deps, "25.78", "113.02", "Asia/Shanghai", "SSID", "PASS");
+  TEST_ASSERT_FALSE(result.ok);
+}
+
+void test_fetch_weather_missing_current_key() {
+  homedeck::WeatherProviderDeps deps;
+  deps.connectWifi = [](const std::string&, const std::string&) { return true; };
+  deps.disconnectWifi = []() {};
+  deps.httpGet = [](const std::string&) -> std::pair<int, std::string> {
+    std::string mockJson = R"({"daily":{"weather_code":[1],"temperature_2m_max":[30],"temperature_2m_min":[20]}})";
+    return {200, mockJson};
+  };
+  
+  auto result = homedeck::fetchWeather(deps, "25.78", "113.02", "Asia/Shanghai", "SSID", "PASS");
+  TEST_ASSERT_FALSE(result.ok);
+}
+
+void test_fetch_weather_empty_daily_arrays() {
+  homedeck::WeatherProviderDeps deps;
+  deps.connectWifi = [](const std::string&, const std::string&) { return true; };
+  deps.disconnectWifi = []() {};
+  deps.httpGet = [](const std::string&) -> std::pair<int, std::string> {
+    std::string mockJson = R"({"current":{"temperature_2m":22,"weather_code":1},"daily":{"weather_code":[],"temperature_2m_max":[],"temperature_2m_min":[]}})";
+    return {200, mockJson};
+  };
+  
+  auto result = homedeck::fetchWeather(deps, "25.78", "113.02", "Asia/Shanghai", "SSID", "PASS");
+  TEST_ASSERT_FALSE(result.ok);
+}
+
+void test_fetch_weather_negative_temp() {
+  homedeck::WeatherProviderDeps deps;
+  deps.connectWifi = [](const std::string&, const std::string&) { return true; };
+  deps.disconnectWifi = []() {};
+  deps.httpGet = [](const std::string&) -> std::pair<int, std::string> {
+    std::string mockJson = R"({
+      "current":{"temperature_2m":-5.7,"weather_code":71},
+      "daily":{"weather_code":[71],"temperature_2m_max":[-2.1],"temperature_2m_min":[-10.3]}
+    })";
+    return {200, mockJson};
+  };
+  
+  auto result = homedeck::fetchWeather(deps, "25.78", "113.02", "Asia/Shanghai", "SSID", "PASS");
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL(-5, result.currentTemp);
+  TEST_ASSERT_EQUAL(71, result.weatherCode);
+  TEST_ASSERT_EQUAL(-2, result.tempMax);
+  TEST_ASSERT_EQUAL(-10, result.tempMin);
+}
+
+void test_url_encode_special_chars() {
+  homedeck::WeatherProviderDeps deps;
+  deps.connectWifi = [](const std::string&, const std::string&) { return true; };
+  deps.disconnectWifi = []() {};
+  std::string capturedUrl;
+  deps.httpGet = [&](const std::string& url) -> std::pair<int, std::string> {
+    capturedUrl = url;
+    return {200, "{}"};
+  };
+  
+  homedeck::fetchWeather(deps, "25.78", "113.02", "Etc/GMT+1", "SSID", "PASS");
+  TEST_ASSERT_TRUE(capturedUrl.find("Etc%2FGMT%2B1") != std::string::npos);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_weather_description_mapping);
   RUN_TEST(test_fetch_weather_success);
   RUN_TEST(test_fetch_weather_wifi_fail);
   RUN_TEST(test_fetch_weather_http_fail);
+  RUN_TEST(test_fetch_weather_malformed_json);
+  RUN_TEST(test_fetch_weather_missing_current_key);
+  RUN_TEST(test_fetch_weather_empty_daily_arrays);
+  RUN_TEST(test_fetch_weather_negative_temp);
+  RUN_TEST(test_url_encode_special_chars);
   return UNITY_END();
 }

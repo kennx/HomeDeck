@@ -28,7 +28,6 @@ WeatherData makeCurrentWeatherData();
 
 class WeatherView {
  public:
-  void render();
   void render(const WeatherData& data);
   void renderSleep();
 };

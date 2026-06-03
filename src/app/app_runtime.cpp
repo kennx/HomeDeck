@@ -275,7 +275,7 @@ void renderWeatherWithEnvironment() {
   WEATHER_LOG("[Weather] Config values: Lat=%s, Lon=%s, SSID=%s\n", 
               config.latitude.c_str(), config.longitude.c_str(), config.wifiSsid.c_str());
 
-  if (config.wifiSsid.empty() || config.latitude.empty() || config.longitude.empty()) {
+  if (config.wifiSsid.empty() || config.latitude.empty() || config.longitude.empty() || config.timezoneIana.empty()) {
     WEATHER_LOG("[Weather] Direct fallback because config fields are empty\n");
     WeatherData data = makeCurrentWeatherData();
     data.valid = false;
@@ -307,9 +307,11 @@ void renderWeatherWithEnvironment() {
   providerDeps.httpGet = [](const std::string& url) -> std::pair<int, std::string> {
     WEATHER_LOG("[Weather] Performing HTTP GET on URL: %s\n", url.c_str());
 #ifndef UNIT_TEST
-    WiFiClient client;
+    WiFiClientSecure client;
+    client.setInsecure();
     HTTPClient http;
     http.begin(client, url.c_str());
+    http.setConnectTimeout(5000);
     http.setTimeout(10000);
     int code = http.GET();
     WEATHER_LOG("[Weather] HTTP Code: %d\n", code);

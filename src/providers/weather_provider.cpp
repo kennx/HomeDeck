@@ -1,18 +1,20 @@
 #include "providers/weather_provider.h"
 #include <ArduinoJson.h>
-#include <cmath>
 
 namespace homedeck {
 
 namespace {
 
 std::string urlEncode(const std::string& value) {
-  std::string result = "";
+  std::string result;
+  result.reserve(value.size() * 3);
   for (char c : value) {
-    if (c == '/') {
-      result += "%2F";
-    } else {
+    if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.' || c == '~') {
       result += c;
+    } else {
+      char buf[4] = {};
+      std::snprintf(buf, sizeof(buf), "%%%02X", static_cast<unsigned char>(c));
+      result += buf;
     }
   }
   return result;
@@ -38,7 +40,7 @@ WeatherResult fetchWeather(
   }
   
   std::string encodedTz = urlEncode(timezoneIana);
-  std::string url = "http://api.open-meteo.com/v1/forecast?latitude=" + latitude +
+  std::string url = "https://api.open-meteo.com/v1/forecast?latitude=" + latitude +
                     "&longitude=" + longitude +
                     "&current=temperature_2m,weather_code" +
                     "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
@@ -65,7 +67,6 @@ WeatherResult fetchWeather(
     return result;
   }
   
-  result.ok = true;
   result.currentTemp = static_cast<int>(current["temperature_2m"].as<float>());
   result.weatherCode = current["weather_code"].as<int>();
   
@@ -74,6 +75,7 @@ WeatherResult fetchWeather(
   if (maxTemps.size() > 0 && minTemps.size() > 0) {
     result.tempMax = static_cast<int>(maxTemps[0].as<float>());
     result.tempMin = static_cast<int>(minTemps[0].as<float>());
+    result.ok = true;
   }
   
   return result;

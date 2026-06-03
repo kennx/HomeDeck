@@ -38,24 +38,22 @@ WeatherData makeCurrentWeatherData() {
   return makeWeatherData(*local);
 }
 
-void WeatherView::render() {
-  WeatherData data = makeCurrentWeatherData();
-  const EnvironmentReading reading = readSht40Environment();
-  if (reading.ok) {
-    data.temperatureAvailable = true;
-    data.temperatureCelsius = reading.temperatureCelsius;
-    data.humidityAvailable = true;
-    data.humidityPercent = reading.humidityPercent;
-  }
-  data.bottomCenterMessage = formatCurrentTimeHHMM();
-  render(data);
-}
-
 void WeatherView::render(const WeatherData& data) {
   M5Canvas& canvas = sprite();
   prepareScreen(canvas);
 
-  // 1. 顶部状态栏：年 / 月份 / 星期几
+  const int centerX = canvas.width() / 2;
+  const int centerY = canvas.height() / 2;
+  constexpr int kTempFontHeight = 156;
+  constexpr int kTempFontHalfHeight = static_cast<int>(kTempFontHeight * kGlyphHeightRatio / 2);
+
+  std::string tempStr = data.valid ? std::to_string(data.currentTemp) : "--";
+  std::string unitStr = "°C";
+
+  int tempWidth = 0;
+  int unitWidth = 0;
+
+  // 1. 顶部状态栏 + 测量 unitWidth
   if (canvas.loadFont(generated::kDeviceFontVlw)) {
     canvas.setTextColor(kThemeColor, kBgColor);
     canvas.setTextDatum(textdatum_t::top_left);
@@ -66,63 +64,44 @@ void WeatherView::render(const WeatherData& data) {
 
     canvas.setTextDatum(textdatum_t::top_right);
     canvas.drawString(weekdayName(data.weekday), kViewRightX, kViewHeaderTopY);
+
+    unitWidth = canvas.textWidth(unitStr.c_str());
     canvas.unloadFont();
   }
 
-  const int centerX = canvas.width() / 2;
-  const int centerY = canvas.height() / 2;
-  constexpr int kTempFontHeight = 156;
-  constexpr int kTempFontHalfHeight = static_cast<int>(kTempFontHeight * kGlyphHeightRatio / 2);
-
-  // 2. 中间大字气温和 °C 符号
-  std::string tempStr = data.valid ? std::to_string(data.currentTemp) : "--";
-  std::string unitStr = "°C";
-  
-  int tempWidth = 0;
-  int unitWidth = 0;
-  
+  // 2. 测量 tempWidth
   if (canvas.loadFont(generated::kDeviceLargeDateFontVlw)) {
     tempWidth = canvas.textWidth(tempStr.c_str());
     canvas.unloadFont();
   }
-  if (canvas.loadFont(generated::kDeviceFontVlw)) {
-    unitWidth = canvas.textWidth(unitStr.c_str());
-    canvas.unloadFont();
-  }
-  
+
   int totalWidth = tempWidth + 4 + unitWidth;
   int startX = centerX - totalWidth / 2;
-  
-  // 绘制温度大数字
+
+  // 3. 绘制温度大数字
   if (canvas.loadFont(generated::kDeviceLargeDateFontVlw)) {
     canvas.setTextColor(kThemeColor, kBgColor);
     canvas.setTextDatum(textdatum_t::middle_left);
     canvas.drawString(tempStr.c_str(), startX, centerY);
     canvas.unloadFont();
   }
-  
-  // 绘制 °C 符号
+
+  // 4. 绘制 °C、天气描述、高低温、底部状态栏（一次性加载小字体）
   if (canvas.loadFont(generated::kDeviceFontVlw)) {
     canvas.setTextColor(kThemeColor, kBgColor);
+
+    // °C 符号
     canvas.setTextDatum(textdatum_t::top_left);
     canvas.drawString(unitStr.c_str(), startX + tempWidth + 4, centerY - kTempFontHalfHeight + 10);
-    canvas.unloadFont();
-  }
 
-  // 3. 气温大字上方的天气描述
-  if (canvas.loadFont(generated::kDeviceFontVlw)) {
-    canvas.setTextColor(kThemeColor, kBgColor);
+    // 天气描述
     canvas.setTextDatum(textdatum_t::bottom_center);
     std::string desc = data.valid ? weatherDescription(data.weatherCode) : "";
     if (!desc.empty()) {
       canvas.drawString(desc.c_str(), centerX, centerY - kTempFontHalfHeight - 12);
     }
-    canvas.unloadFont();
-  }
 
-  // 4. 气温大字下方的今日最高最低温
-  if (canvas.loadFont(generated::kDeviceFontVlw)) {
-    canvas.setTextColor(kThemeColor, kBgColor);
+    // 高低温
     canvas.setTextDatum(textdatum_t::top_center);
     char highLowBuf[64] = {};
     if (data.valid) {
@@ -131,12 +110,8 @@ void WeatherView::render(const WeatherData& data) {
       std::snprintf(highLowBuf, sizeof(highLowBuf), "最高 -- / 最低 --");
     }
     canvas.drawString(highLowBuf, centerX, centerY + kTempFontHalfHeight + 12);
-    canvas.unloadFont();
-  }
 
-  // 5. 底部状态栏
-  if (canvas.loadFont(generated::kDeviceFontVlw)) {
-    canvas.setTextColor(kThemeColor, kBgColor);
+    // 底部状态栏
     drawBottomStatusBar(canvas, {data.temperatureAvailable, data.temperatureCelsius,
                                  data.humidityAvailable, data.humidityPercent,
                                  data.bottomCenterMessage});
