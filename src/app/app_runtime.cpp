@@ -29,7 +29,7 @@
 #include "views/almanac_view.h"
 #include "views/calendar_view.h"
 #include "views/countdown_view.h"
-#include "views/home_renderer.h"
+#include "config/config_portal_renderer.h"
 #include "views/weather_view.h"
 #include "providers/weather_provider.h"
 #include "system/render_context.h"
@@ -144,7 +144,7 @@ void prepareEpdAfterDeepSleep() {
 #endif
 
 ConfigStore gConfigStore;
-HomeRenderer gHomeRenderer;
+ConfigPortalRenderer gConfigPortalRenderer;
 AlmanacView gAlmanacView;
 CalendarView gCalendarView;
 CountdownView gCountdownView;
@@ -434,7 +434,7 @@ BootControllerDeps makeBootDeps() {
       return std::string("电量: ") + std::to_string(level) + "%";
     };
     gConfigPortal.begin(apSsid, gConfigStore.loadSetupConfig(), saveSubmittedConfig, batteryProvider);
-    gHomeRenderer.renderConfigPortal(apSsid, softApIpAddress());
+    gConfigPortalRenderer.renderConfigPortal(apSsid, softApIpAddress());
   };
   deps.handleConfigPortalClient = []() { gConfigPortal.handleClient(); };
   deps.restoreSystemTimeFromRtc = []() {
