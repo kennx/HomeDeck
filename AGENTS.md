@@ -43,7 +43,7 @@
 - 所有应用代码使用 `homedeck` 命名空间（扁平，不按子目录嵌套）。
 - 文件名：`snake_case`。目录名：`snake_case`。类名：`PascalCase`。函数/变量：`camelCase`。私有成员：尾部下划线（`name_`）。
 - 头文件保护：优先使用 `#pragma once`。
-- 头文件 include：使用 `"目录/文件名.h"` 相对路径（如 `"views/home_renderer.h"`），不要带 `src/` 前缀。PlatformIO 已将 `src/` 加入 include path。
+- 头文件 include：使用 `"目录/文件名.h"` 相对路径（如 `"views/almanac_view.h"`），不要带 `src/` 前缀。PlatformIO 已将 `src/` 加入 include path。
 - 新代码文件按功能放入对应子目录：`app/`（生命周期/启动/视图管理）、`views/`（渲染/视图组件）、`system/`（硬件服务）、`config/`（配置子系统）、`providers/`（数据提供者），不要放回 `src/` 根目录。
 - 优先通过 `std::function` 和普通结构体进行依赖注入（参见 `BootControllerDeps` 模式），而非静态全局变量或深度继承。
 - 最小化全局状态。如果不可避免，说明原因并限制在翻译单元内使用 `static`。
