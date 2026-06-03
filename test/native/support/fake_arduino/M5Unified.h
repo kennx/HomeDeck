@@ -635,6 +635,10 @@ struct FakeCanvas {
     rects.push_back({x - r, y - r, r * 2, r * 2, color});
   }
 
+  void fillSmoothCircle(int x, int y, int r, std::uint32_t color) {
+    fillCircle(x, y, r, color);
+  }
+
 
   void setTextWrap(bool value) {
     if (parent != nullptr) {

@@ -111,7 +111,7 @@ void CalendarView::render(const CalendarData& data) {
         const int cy = kCalDateStartY + row * (kCalDateRowHeight + kCalDateRowGap) + kCalDateRowHeight / 2;
 
         if (dayNumber == data.day) {
-          canvas.fillCircle(cx, cy, 20, TFT_BLACK);
+          canvas.fillSmoothCircle(cx, cy, 20, TFT_BLACK);
           canvas.setTextColor(TFT_WHITE);
         } else {
           canvas.setTextColor(TFT_BLACK, TFT_WHITE);

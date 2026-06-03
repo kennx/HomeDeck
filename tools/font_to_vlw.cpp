@@ -149,7 +149,8 @@ std::vector<std::uint8_t> copyBitmap(const FT_Bitmap& bitmap) {
 }
 
 Glyph renderGlyph(FT_Face face, std::uint32_t code_point) {
-  if (FT_Load_Char(face, code_point, FT_LOAD_RENDER) != 0) {
+  if (FT_Load_Char(face, code_point, FT_LOAD_RENDER | FT_LOAD_TARGET_LIGHT) !=
+      0) {
     std::ostringstream message;
     message << "failed to render U+" << std::uppercase << std::hex
             << code_point;
