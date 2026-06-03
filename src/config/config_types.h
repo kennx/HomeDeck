@@ -5,6 +5,9 @@
 
 namespace homedeck {
 
+constexpr const char* kDefaultLatitude = "31.2304";
+constexpr const char* kDefaultLongitude = "121.4737";
+
 struct SetupConfig {
   std::string wifiSsid;
   std::string wifiPassword;

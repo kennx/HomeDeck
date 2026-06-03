@@ -73,17 +73,11 @@ SetupConfig ConfigPortal::readConfigFromRequest() {
   const std::string lat = server_.arg("latitude").c_str();
   const std::string lon = server_.arg("longitude").c_str();
 
-  auto trimStr = [](const std::string& s) -> std::string {
-    const size_t start = s.find_first_not_of(" \t\r\n");
-    const size_t end = s.find_last_not_of(" \t\r\n");
-    return (start == std::string::npos) ? "" : s.substr(start, end - start + 1);
-  };
+  const std::string_view trimmedLat = trim(lat);
+  const std::string_view trimmedLon = trim(lon);
 
-  const std::string trimmedLat = trimStr(lat);
-  const std::string trimmedLon = trimStr(lon);
-
-  config.latitude = trimmedLat.empty() ? "31.2304" : trimmedLat;
-  config.longitude = trimmedLon.empty() ? "121.4737" : trimmedLon;
+  config.latitude = trimmedLat.empty() ? kDefaultLatitude : std::string(trimmedLat);
+  config.longitude = trimmedLon.empty() ? kDefaultLongitude : std::string(trimmedLon);
 
   return config;
 }

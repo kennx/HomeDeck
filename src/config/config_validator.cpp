@@ -33,6 +33,16 @@ int daysInMonth(int year, int month) {
   }
 }
 
+bool isBlank(std::string_view value) {
+  return trim(value).empty();
+}
+
+ConfigValidationResult makeError(ConfigValidationError error, const char* message) {
+  return ConfigValidationResult{error, message};
+}
+
+}  // namespace
+
 std::string_view trim(std::string_view value) {
   std::size_t start = 0;
   while (start < value.size() && (value[start] == ' ' || value[start] == '\t' || value[start] == '\n' || value[start] == '\r')) {
@@ -44,16 +54,6 @@ std::string_view trim(std::string_view value) {
   }
   return value.substr(start, end - start);
 }
-
-bool isBlank(std::string_view value) {
-  return trim(value).empty();
-}
-
-ConfigValidationResult makeError(ConfigValidationError error, const char* message) {
-  return ConfigValidationResult{error, message};
-}
-
-}  // namespace
 
 bool parseLatitude(std::string_view value, double* out) {
   const std::string_view trimmed = trim(value);

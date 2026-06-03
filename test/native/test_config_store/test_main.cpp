@@ -20,8 +20,8 @@ void test_load_defaults_when_empty() {
 
   TEST_ASSERT_EQUAL_STRING("Asia/Shanghai", config.timezoneIana.c_str());
   TEST_ASSERT_EQUAL_STRING("pool.ntp.org", config.ntpServer.c_str());
-  TEST_ASSERT_EQUAL_STRING("31.2304", config.latitude.c_str());
-  TEST_ASSERT_EQUAL_STRING("121.4737", config.longitude.c_str());
+  TEST_ASSERT_EQUAL_STRING(homedeck::kDefaultLatitude, config.latitude.c_str());
+  TEST_ASSERT_EQUAL_STRING(homedeck::kDefaultLongitude, config.longitude.c_str());
   TEST_ASSERT_FALSE(flags.configured);
   TEST_ASSERT_FALSE(flags.forceConfigOnNextBoot);
 }
@@ -76,8 +76,23 @@ void test_load_converts_empty_coords_to_defaults() {
   TEST_ASSERT_TRUE(store.saveSetupConfig(config));
 
   const auto loaded = store.loadSetupConfig();
-  TEST_ASSERT_EQUAL_STRING("31.2304", loaded.latitude.c_str());
-  TEST_ASSERT_EQUAL_STRING("121.4737", loaded.longitude.c_str());
+  TEST_ASSERT_EQUAL_STRING(homedeck::kDefaultLatitude, loaded.latitude.c_str());
+  TEST_ASSERT_EQUAL_STRING(homedeck::kDefaultLongitude, loaded.longitude.c_str());
+}
+
+void test_load_converts_whitespace_coords_to_defaults() {
+  homedeck::ConfigStore store;
+  TEST_ASSERT_TRUE(store.begin());
+
+  homedeck::SetupConfig config{};
+  config.latitude = "   \t\n";
+  config.longitude = "  ";
+
+  TEST_ASSERT_TRUE(store.saveSetupConfig(config));
+
+  const auto loaded = store.loadSetupConfig();
+  TEST_ASSERT_EQUAL_STRING(homedeck::kDefaultLatitude, loaded.latitude.c_str());
+  TEST_ASSERT_EQUAL_STRING(homedeck::kDefaultLongitude, loaded.longitude.c_str());
 }
 
 int main(int, char**) {
@@ -86,5 +101,6 @@ int main(int, char**) {
   RUN_TEST(test_save_and_load_config_and_flags);
   RUN_TEST(test_clear_force_config_flag);
   RUN_TEST(test_load_converts_empty_coords_to_defaults);
+  RUN_TEST(test_load_converts_whitespace_coords_to_defaults);
   return UNITY_END();
 }

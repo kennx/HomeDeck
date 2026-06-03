@@ -1,5 +1,7 @@
 #include "config/config_store.h"
 
+#include "config/config_validator.h"
+
 namespace homedeck {
 namespace {
 
@@ -28,14 +30,14 @@ SetupConfig ConfigStore::loadSetupConfig() const {
   config.timezoneIana = prefs_.getString(kTimezoneIana, "Asia/Shanghai").c_str();
   config.autoRtcCorrection = prefs_.getBool(kAutoRtc, false);
   config.ntpServer = prefs_.getString(kNtpServer, "pool.ntp.org").c_str();
-  config.latitude = prefs_.getString(kLatitude, "31.2304").c_str();
-  config.longitude = prefs_.getString(kLongitude, "121.4737").c_str();
+  config.latitude = prefs_.getString(kLatitude, kDefaultLatitude).c_str();
+  config.longitude = prefs_.getString(kLongitude, kDefaultLongitude).c_str();
 
-  if (config.latitude.empty()) {
-    config.latitude = "31.2304";
+  if (trim(config.latitude).empty()) {
+    config.latitude = kDefaultLatitude;
   }
-  if (config.longitude.empty()) {
-    config.longitude = "121.4737";
+  if (trim(config.longitude).empty()) {
+    config.longitude = kDefaultLongitude;
   }
   return config;
 }

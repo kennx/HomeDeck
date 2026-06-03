@@ -92,7 +92,8 @@ std::string buildSetupPageHtml(
 
     size_t endPos = temp.find("}}", pos);
     if (endPos == std::string_view::npos) {
-      break;
+      out << temp.substr(pos);
+      return out.str();
     }
 
     std::string_view placeholder = temp.substr(pos, endPos + 2 - pos);

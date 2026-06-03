@@ -29,7 +29,7 @@
 - 将重新生成以下资源文件：
   - [device_font_vlw.cpp](file:///Users/kenn/PROJECTS/m5stack/HomeDeck/src/generated/device_font_vlw.cpp)
   - [device_font_vlw.h](file:///Users/kenn/PROJECTS/m5stack/HomeDeck/src/generated/device_font_vlw.h)
-- 经对比，生成的 vlw 数据二进制数组总大小不变，因为在 vlw 格式的实现中，之前的 Mono 模式也是以每像素 1 字节（0x00 或 0xFF）对齐存储，现在仅把 0xFF/0x00 替换为了 0-255 的中间透明度。
+- 经对比，生成的 vlw 数据二进制数组大小略有增加。虽然 vlw 格式在两种模式下均按每像素 1 字节存储，但灰度抗锯齿可能产生略大的字形包围盒，导致总字节数轻微上涨（仍远低于 Flash 预算）。
 
 ---
 
