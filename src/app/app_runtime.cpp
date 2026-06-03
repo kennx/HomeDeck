@@ -278,7 +278,9 @@ void renderWeatherWithEnvironment() {
   if (config.wifiSsid.empty() || config.latitude.empty() || config.longitude.empty() || config.timezoneIana.empty()) {
     WEATHER_LOG("[Weather] Direct fallback because config fields are empty\n");
     WeatherData data = makeCurrentWeatherData();
-    data.valid = false;
+    if (!applyCachedWeather(data.year, data.month, data.day, data)) {
+      data.valid = false;
+    }
     const EnvironmentReading reading = readSht40Environment();
     if (reading.ok) {
       data.temperatureAvailable = true;
@@ -342,8 +344,11 @@ void renderWeatherWithEnvironment() {
     data.weatherCode = result.weatherCode;
     data.tempMax = result.tempMax;
     data.tempMin = result.tempMin;
+    writeWeatherCache(data);
   } else {
-    data.valid = false;
+    if (!applyCachedWeather(data.year, data.month, data.day, data)) {
+      data.valid = false;
+    }
   }
   
   const EnvironmentReading reading = readSht40Environment();

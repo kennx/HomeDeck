@@ -23,6 +23,7 @@ WeatherData makeWeatherData(const std::tm& localTime) {
   WeatherData data{};
   data.year = localTime.tm_year + 1900;
   data.month = localTime.tm_mon + 1;
+  data.day = localTime.tm_mday;
   data.weekday = localTime.tm_wday;
   return data;
 }
@@ -37,6 +38,41 @@ WeatherData makeCurrentWeatherData() {
   }
   return makeWeatherData(*local);
 }
+
+#ifdef UNIT_TEST
+WeatherCache gWeatherCache;
+#else
+RTC_DATA_ATTR WeatherCache gWeatherCache;
+#endif
+
+void writeWeatherCache(const WeatherData& data) {
+  gWeatherCache.valid = data.valid;
+  gWeatherCache.year = data.year;
+  gWeatherCache.month = data.month;
+  gWeatherCache.day = data.day;
+  gWeatherCache.currentTemp = data.currentTemp;
+  gWeatherCache.weatherCode = data.weatherCode;
+  gWeatherCache.tempMax = data.tempMax;
+  gWeatherCache.tempMin = data.tempMin;
+}
+
+bool applyCachedWeather(int year, int month, int day, WeatherData& data) {
+  if (!gWeatherCache.valid || gWeatherCache.year != year || gWeatherCache.month != month || gWeatherCache.day != day) {
+    return false;
+  }
+  data.valid = true;
+  data.currentTemp = gWeatherCache.currentTemp;
+  data.weatherCode = gWeatherCache.weatherCode;
+  data.tempMax = gWeatherCache.tempMax;
+  data.tempMin = gWeatherCache.tempMin;
+  return true;
+}
+
+#ifdef UNIT_TEST
+void resetWeatherCacheForTest() {
+  gWeatherCache = WeatherCache{};
+}
+#endif
 
 void WeatherView::render(const WeatherData& data) {
   M5Canvas& canvas = sprite();
@@ -123,7 +159,9 @@ void WeatherView::render(const WeatherData& data) {
 
 void WeatherView::renderSleep() {
   WeatherData data = makeCurrentWeatherData();
-  data.valid = false;
+  if (!applyCachedWeather(data.year, data.month, data.day, data)) {
+    data.valid = false;
+  }
   data.temperatureAvailable = false;
   data.humidityAvailable = false;
   data.bottomCenterMessage = "--:--";
