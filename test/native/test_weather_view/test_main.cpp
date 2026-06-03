@@ -4,20 +4,8 @@
 #include "system/render_context.h"
 #include <algorithm>
 
-// 提供 stub/mock M5 接口
-FakeDisplay gDisplay;
-FakeCanvas gCanvas{&gDisplay};
-
-namespace homedeck {
-M5Canvas& sprite() { return gCanvas; }
-void prepareScreen(M5Canvas& c) { c.fillSprite(TFT_WHITE); }
-void pushScreen(M5Canvas& c) { c.pushSprite(0, 0); }
-std::string formatCurrentTimeHHMM() { return "12:00"; }
-}
-
 void setUp() {
-  gDisplay = FakeDisplay{};
-  gCanvas = FakeCanvas{&gDisplay};
+  M5 = FakeM5Global{};
 }
 void tearDown() {}
 
@@ -46,7 +34,7 @@ void test_weather_view_render_success() {
   bool foundHighLow = false;
   bool foundStatus = false;
   
-  for (const auto& print : gDisplay.prints) {
+  for (const auto& print : M5.Display.prints) {
     if (print.text == "33" && print.fontKind == FakeFontKind::kDeviceLargeDate) {
       foundTemp = true;
     }
@@ -80,11 +68,11 @@ void test_weather_view_render_invalid() {
   bool foundDegradedTemp = false;
   bool foundDegradedHighLow = false;
   
-  for (const auto& print : gDisplay.prints) {
+  for (const auto& print : M5.Display.prints) {
     if (print.text == "--" && print.fontKind == FakeFontKind::kDeviceLargeDate) {
       foundDegradedTemp = true;
     }
-    if (print.text.find("-- / --") != std::string::npos) {
+    if (print.text.find("最高 -- / 最低 --") != std::string::npos) {
       foundDegradedHighLow = true;
     }
   }
