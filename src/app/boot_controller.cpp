@@ -100,6 +100,10 @@ void BootController::update() {
         if (deps_.renderCountdown) {
           deps_.renderCountdown();
         }
+      } else if (viewManager_->currentView() == SystemView::Weather) {
+        if (deps_.renderWeather) {
+          deps_.renderWeather();
+        }
       }
       lastActivityMs_ = now;
     }
@@ -180,6 +184,7 @@ void BootController::enterSystemMode() {
   vmDeps.renderAlmanac = deps_.renderAlmanac;
   vmDeps.renderCalendar = deps_.renderCalendar;
   vmDeps.renderCountdown = deps_.renderCountdown;
+  vmDeps.renderWeather = deps_.renderWeather;
   viewManager_ = std::make_unique<ViewManager>(std::move(vmDeps));
 
   SystemView initialView = deps_.loadSavedView ? deps_.loadSavedView() : SystemView::Almanac;

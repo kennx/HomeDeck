@@ -18,6 +18,9 @@ void ViewManager::switchToNextView() {
       switchTo(SystemView::Countdown);
       break;
     case SystemView::Countdown:
+      switchTo(SystemView::Weather);
+      break;
+    case SystemView::Weather:
       switchTo(SystemView::Almanac);
       break;
   }
@@ -43,6 +46,11 @@ void ViewManager::switchTo(SystemView view) {
     case SystemView::Countdown:
       if (deps_.renderCountdown) {
         deps_.renderCountdown();
+      }
+      break;
+    case SystemView::Weather:
+      if (deps_.renderWeather) {
+        deps_.renderWeather();
       }
       break;
   }

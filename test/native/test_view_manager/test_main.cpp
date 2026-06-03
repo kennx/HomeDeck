@@ -14,6 +14,7 @@ struct Fixture {
     deps.renderAlmanac = [this]() { renderedViews.push_back("almanac"); };
     deps.renderCalendar = [this]() { renderedViews.push_back("calendar"); };
     deps.renderCountdown = [this]() { renderedViews.push_back("countdown"); };
+    deps.renderWeather = [this]() { renderedViews.push_back("weather"); };
     return deps;
   }
 };
@@ -73,6 +74,21 @@ void test_view_manager_switch_to_next_view_from_countdown() {
 
   vm.switchToNextView();
 
+  TEST_ASSERT_EQUAL(homedeck::SystemView::Weather, vm.currentView());
+  TEST_ASSERT_EQUAL_STRING("weather", f.renderedViews[0].c_str());
+}
+
+void test_view_manager_switch_to_next_view_from_weather() {
+  Fixture f{};
+  homedeck::ViewManager vm{f.deps()};
+  vm.begin();
+  vm.switchToNextView();
+  vm.switchToNextView();
+  vm.switchToNextView();
+  f.renderedViews.clear();
+
+  vm.switchToNextView();
+
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, vm.currentView());
   TEST_ASSERT_EQUAL_STRING("almanac", f.renderedViews[0].c_str());
 }
@@ -82,6 +98,7 @@ void test_view_manager_switch_to_next_view_cycles() {
   homedeck::ViewManager vm{f.deps()};
   vm.begin();
 
+  vm.switchToNextView();
   vm.switchToNextView();
   vm.switchToNextView();
   vm.switchToNextView();
@@ -105,6 +122,7 @@ int main(int, char**) {
   RUN_TEST(test_view_manager_switch_to_next_view_from_almanac);
   RUN_TEST(test_view_manager_switch_to_next_view_from_calendar);
   RUN_TEST(test_view_manager_switch_to_next_view_from_countdown);
+  RUN_TEST(test_view_manager_switch_to_next_view_from_weather);
   RUN_TEST(test_view_manager_switch_to_next_view_cycles);
   RUN_TEST(test_view_manager_does_not_switch_without_call);
   return UNITY_END();

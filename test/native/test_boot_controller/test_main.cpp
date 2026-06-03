@@ -61,6 +61,8 @@ struct Fixture {
       now += renderHomeDurationMs;
     };
     deps.renderCalendar = [this]() { calendarRendered = true; };
+    deps.renderCountdown = []() {};
+    deps.renderWeather = []() {};
     deps.renderCalendarWithOffset = [this](int offset) {
       calendarOffsets.push_back(offset);
     };
@@ -747,9 +749,11 @@ void test_second_calendar_click_switches_back_to_almanac() {
 
   f.homeRendered = false;
   f.calendarButtonClickCount = 1;
-  controller.update();
+  controller.update(); // to Countdown
   f.calendarButtonClickCount = 1;
-  controller.update();
+  controller.update(); // to Weather
+  f.calendarButtonClickCount = 1;
+  controller.update(); // to Almanac
   TEST_ASSERT_TRUE(f.homeRendered);
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
   TEST_ASSERT_TRUE(f.calendarViewReset);
@@ -771,11 +775,13 @@ void test_calendar_offset_resets_when_switching_away_and_back() {
 
   f.calendarOffsets.clear();
   f.calendarButtonClickCount = 1;
-  controller.update();
+  controller.update(); // to Countdown
   f.calendarButtonClickCount = 1;
-  controller.update();
+  controller.update(); // to Weather
   f.calendarButtonClickCount = 1;
-  controller.update();
+  controller.update(); // to Almanac
+  f.calendarButtonClickCount = 1;
+  controller.update(); // to Calendar
   f.calendarButtonClickCount = 0;
 
   f.prevMonthClicked = true;
@@ -799,11 +805,13 @@ void test_almanac_offset_resets_when_switching_away_and_back() {
 
   f.almanacOffsets.clear();
   f.calendarButtonClickCount = 1;
-  controller.update();
+  controller.update(); // to Calendar
   f.calendarButtonClickCount = 1;
-  controller.update();
+  controller.update(); // to Countdown
   f.calendarButtonClickCount = 1;
-  controller.update();
+  controller.update(); // to Weather
+  f.calendarButtonClickCount = 1;
+  controller.update(); // to Almanac
   f.calendarButtonClickCount = 0;
 
   f.prevMonthClicked = true;

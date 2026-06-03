@@ -8,12 +8,14 @@ enum class SystemView {
   Almanac,
   Calendar,
   Countdown,
+  Weather,
 };
 
 struct ViewManagerDeps {
   std::function<void()> renderAlmanac;
   std::function<void()> renderCalendar;
   std::function<void()> renderCountdown;
+  std::function<void()> renderWeather;
 };
 
 class ViewManager {

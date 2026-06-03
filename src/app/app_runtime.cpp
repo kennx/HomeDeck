@@ -30,6 +30,13 @@
 #include "views/calendar_view.h"
 #include "views/countdown_view.h"
 #include "views/home_renderer.h"
+#include "views/weather_view.h"
+#include "providers/weather_provider.h"
+#include "system/render_context.h"
+#ifndef UNIT_TEST
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#endif
 #include "system/sht40_reader.h"
 #include "system/time_service.h"
 #include "providers/timezone_catalog.h"
@@ -135,6 +142,7 @@ HomeRenderer gHomeRenderer;
 AlmanacView gAlmanacView;
 CalendarView gCalendarView;
 CountdownView gCountdownView;
+WeatherView gWeatherView;
 ConfigPortal gConfigPortal;
 std::unique_ptr<TimeService> gTimeService;
 std::unique_ptr<BootController> gBootController;
@@ -255,6 +263,78 @@ void renderAlmanacWithOffset(int dayOffset) {
   gAlmanacView.renderWithOffset(dayOffset);
 }
 
+void renderWeatherWithEnvironment() {
+  SetupConfig config = gConfigStore.loadSetupConfig();
+  
+  if (config.wifiSsid.empty() || config.latitude.empty() || config.longitude.empty()) {
+    WeatherData data = makeCurrentWeatherData();
+    data.valid = false;
+    const EnvironmentReading reading = readSht40Environment();
+    if (reading.ok) {
+      data.temperatureAvailable = true;
+      data.temperatureCelsius = reading.temperatureCelsius;
+      data.humidityAvailable = true;
+      data.humidityPercent = reading.humidityPercent;
+    }
+    data.bottomCenterMessage = formatCurrentTimeHHMM();
+    gWeatherView.render(data);
+    return;
+  }
+
+  WeatherProviderDeps providerDeps;
+  providerDeps.connectWifi = [](const std::string& ssid, const std::string& pass) {
+    return connectWifiPreservingAccessPoint(ssid, pass, 10000);
+  };
+  providerDeps.disconnectWifi = []() {
+#ifndef UNIT_TEST
+    WiFi.disconnect(true);
+#endif
+  };
+  providerDeps.httpGet = [](const std::string& url) -> std::pair<int, std::string> {
+#ifndef UNIT_TEST
+    WiFiClientSecure client;
+    client.setInsecure();
+    HTTPClient http;
+    http.begin(client, url.c_str());
+    http.setTimeout(10000);
+    int code = http.GET();
+    std::string payload = "";
+    if (code == 200) {
+      payload = http.getString().c_str();
+    }
+    http.end();
+    return {code, payload};
+#else
+    (void)url;
+    return {500, ""};
+#endif
+  };
+
+  WeatherResult result = fetchWeather(providerDeps, config.latitude, config.longitude, config.timezoneIana, config.wifiSsid, config.wifiPassword);
+  
+  WeatherData data = makeCurrentWeatherData();
+  if (result.ok) {
+    data.valid = true;
+    data.currentTemp = result.currentTemp;
+    data.weatherCode = result.weatherCode;
+    data.tempMax = result.tempMax;
+    data.tempMin = result.tempMin;
+  } else {
+    data.valid = false;
+  }
+  
+  const EnvironmentReading reading = readSht40Environment();
+  if (reading.ok) {
+    data.temperatureAvailable = true;
+    data.temperatureCelsius = reading.temperatureCelsius;
+    data.humidityAvailable = true;
+    data.humidityPercent = reading.humidityPercent;
+  }
+  data.bottomCenterMessage = formatCurrentTimeHHMM();
+  
+  gWeatherView.render(data);
+}
+
 }  // namespace
 
 #ifdef UNIT_TEST
@@ -346,6 +426,7 @@ BootControllerDeps makeBootDeps() {
   deps.renderCountdown = []() {
     gCountdownView.render();
   };
+  deps.renderWeather = renderWeatherWithEnvironment;
   deps.renderCalendarWithOffset = renderCalendarWithOffset;
   deps.renderAlmanacWithOffset = renderAlmanacWithOffset;
   deps.resetCalendarView = []() { gCalendarView.resetOffset(); };
@@ -372,6 +453,8 @@ BootControllerDeps makeBootDeps() {
       gCalendarView.renderSleep();
     } else if (view == homedeck::SystemView::Countdown) {
       gCountdownView.renderSleep();
+    } else if (view == homedeck::SystemView::Weather) {
+      gWeatherView.renderSleep();
     }
   };
   deps.enterDeepSleep = enterHomeDeepSleep;
