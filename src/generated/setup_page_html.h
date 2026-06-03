@@ -599,18 +599,19 @@ const char SETUP_PAGE_TEMPLATE[] PROGMEM = R"raw(<!doctype html>
       const lonVal = lonInput.value.trim();
       let error = '';
 
-      if (!latVal) {
-        error = '纬度不能为空';
-      } else if (isNaN(Number(latVal))) {
-        error = '纬度必须是合法的数字';
-      } else if (Number(latVal) < -90 || Number(latVal) > 90) {
-        error = '纬度范围必须在 -90 到 90 之间';
-      } else if (!lonVal) {
-        error = '经度不能为空';
-      } else if (isNaN(Number(lonVal))) {
-        error = '经度必须是合法的数字';
-      } else if (Number(lonVal) < -180 || Number(lonVal) > 180) {
-        error = '经度范围必须在 -180 到 180 之间';
+      if (latVal !== "") {
+        if (isNaN(Number(latVal))) {
+          error = '纬度必须是合法的数字';
+        } else if (Number(latVal) < -90 || Number(latVal) > 90) {
+          error = '纬度范围必须在 -90 到 90 之间';
+        }
+      }
+      if (!error && lonVal !== "") {
+        if (isNaN(Number(lonVal))) {
+          error = '经度必须是合法的数字';
+        } else if (Number(lonVal) < -180 || Number(lonVal) > 180) {
+          error = '经度范围必须在 -180 到 180 之间';
+        }
       }
 
       if (error) {

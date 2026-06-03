@@ -65,10 +65,26 @@ void test_clear_force_config_flag() {
   TEST_ASSERT_FALSE(store.loadBootFlags().forceConfigOnNextBoot);
 }
 
+void test_load_converts_empty_coords_to_defaults() {
+  homedeck::ConfigStore store;
+  TEST_ASSERT_TRUE(store.begin());
+
+  homedeck::SetupConfig config{};
+  config.latitude = "";
+  config.longitude = "";
+
+  TEST_ASSERT_TRUE(store.saveSetupConfig(config));
+
+  const auto loaded = store.loadSetupConfig();
+  TEST_ASSERT_EQUAL_STRING("31.2304", loaded.latitude.c_str());
+  TEST_ASSERT_EQUAL_STRING("121.4737", loaded.longitude.c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_load_defaults_when_empty);
   RUN_TEST(test_save_and_load_config_and_flags);
   RUN_TEST(test_clear_force_config_flag);
+  RUN_TEST(test_load_converts_empty_coords_to_defaults);
   return UNITY_END();
 }

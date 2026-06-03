@@ -48,7 +48,8 @@ def main():
         '{{AP_SSID}}', '{{WIFI_GRID_ITEMS}}', '{{TIMEZONE_OPTION_ITEMS}}',
         '{{ERROR_CONTAINER_STYLE}}', '{{ERROR_MESSAGE}}', '{{WIFI_SSID}}',
         '{{WIFI_PASSWORD}}', '{{NTP_SERVER}}', '{{LATITUDE}}', '{{LONGITUDE}}',
-        '{{AUTO_RTC_CHECKED}}', '{{AUTO_RTC_DISABLED}}'
+        '{{AUTO_RTC_CHECKED}}', '{{AUTO_RTC_DISABLED}}',
+        '{{BATTERY_INFO_STYLE}}', '{{BATTERY_INFO}}'
     ]
     missing = [ph for ph in required_placeholders if ph not in content]
     if missing:

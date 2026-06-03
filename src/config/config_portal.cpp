@@ -69,8 +69,22 @@ SetupConfig ConfigPortal::readConfigFromRequest() {
   config.timezoneIana = server_.arg("timezone").c_str();
   config.autoRtcCorrection = server_.arg("auto_rtc") == "1" && !config.wifiSsid.empty();
   config.ntpServer = server_.arg("ntp_server").c_str();
-  config.latitude = server_.arg("latitude").c_str();
-  config.longitude = server_.arg("longitude").c_str();
+
+  const std::string lat = server_.arg("latitude").c_str();
+  const std::string lon = server_.arg("longitude").c_str();
+
+  auto trimStr = [](const std::string& s) -> std::string {
+    const size_t start = s.find_first_not_of(" \t\r\n");
+    const size_t end = s.find_last_not_of(" \t\r\n");
+    return (start == std::string::npos) ? "" : s.substr(start, end - start + 1);
+  };
+
+  const std::string trimmedLat = trimStr(lat);
+  const std::string trimmedLon = trimStr(lon);
+
+  config.latitude = trimmedLat.empty() ? "31.2304" : trimmedLat;
+  config.longitude = trimmedLon.empty() ? "121.4737" : trimmedLon;
+
   return config;
 }
 

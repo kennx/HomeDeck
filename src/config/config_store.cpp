@@ -30,6 +30,13 @@ SetupConfig ConfigStore::loadSetupConfig() const {
   config.ntpServer = prefs_.getString(kNtpServer, "pool.ntp.org").c_str();
   config.latitude = prefs_.getString(kLatitude, "31.2304").c_str();
   config.longitude = prefs_.getString(kLongitude, "121.4737").c_str();
+
+  if (config.latitude.empty()) {
+    config.latitude = "31.2304";
+  }
+  if (config.longitude.empty()) {
+    config.longitude = "121.4737";
+  }
   return config;
 }
 

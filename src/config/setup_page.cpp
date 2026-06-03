@@ -48,37 +48,13 @@ std::string htmlEscape(const std::string& value) {
   return escaped;
 }
 
-// 辅助函数：全局字符串占位符替换
-static std::string replaceAll(std::string str, const std::string& from, const std::string& to) {
-  size_t startPos = 0;
-  while ((startPos = str.find(from, startPos)) != std::string::npos) {
-    str.replace(startPos, from.length(), to);
-    startPos += to.length();
-  }
-  return str;
-}
-
 std::string buildSetupPageHtml(
     const std::string& apSsid,
     const SetupConfig& values,
     const std::vector<WifiNetwork>& networks,
     const std::string& message,
     const std::string& batteryInfo) {
-  std::string html(SETUP_PAGE_TEMPLATE);
-
-  // 1. 替换热点名 AP_SSID
-  html = replaceAll(html, "{{AP_SSID}}", htmlEscape(apSsid));
-
-  // 1.5 替换电池信息显示样式和内容
-  if (!batteryInfo.empty()) {
-    html = replaceAll(html, "{{BATTERY_INFO_STYLE}}", "display:flex;");
-    html = replaceAll(html, "{{BATTERY_INFO}}", htmlEscape(batteryInfo));
-  } else {
-    html = replaceAll(html, "{{BATTERY_INFO_STYLE}}", "display:none;");
-    html = replaceAll(html, "{{BATTERY_INFO}}", "");
-  }
-
-  // 2. 替换动态的 Wi-Fi 网格列表
+  // 1. 提前拼接 Wi-Fi 网格列表
   std::ostringstream wifiGrid;
   for (const auto& network : networks) {
     std::string signalQuality = "good";
@@ -91,29 +67,8 @@ std::string buildSetupPageHtml(
     wifiGrid << "<div class=\"sig-bars\"><span class=\"sig-bar\"></span><span class=\"sig-bar\"></span><span class=\"sig-bar\"></span><span class=\"sig-bar\"></span></div>";
     wifiGrid << network.rssi << " dBm</div></button>";
   }
-  html = replaceAll(html, "{{WIFI_GRID_ITEMS}}", wifiGrid.str());
 
-  // 3. 替换错误提示的显示样式和信息内容
-  if (!message.empty()) {
-    html = replaceAll(html, "{{ERROR_CONTAINER_STYLE}}", "display:flex;");
-    html = replaceAll(html, "{{ERROR_MESSAGE}}", htmlEscape(message));
-  } else {
-    html = replaceAll(html, "{{ERROR_CONTAINER_STYLE}}", "display:none;");
-    html = replaceAll(html, "{{ERROR_MESSAGE}}", "");
-  }
-
-  // 4. 替换表单控件的初始输入值
-  html = replaceAll(html, "{{WIFI_SSID}}", htmlEscape(values.wifiSsid));
-  html = replaceAll(html, "{{WIFI_PASSWORD}}", htmlEscape(values.wifiPassword));
-  html = replaceAll(html, "{{NTP_SERVER}}", htmlEscape(values.ntpServer));
-  html = replaceAll(html, "{{LATITUDE}}", htmlEscape(values.latitude));
-  html = replaceAll(html, "{{LONGITUDE}}", htmlEscape(values.longitude));
-
-  // 5. 替换自动 RTC 校时的勾选和启用状态
-  html = replaceAll(html, "{{AUTO_RTC_CHECKED}}", values.autoRtcCorrection ? "checked" : "");
-  html = replaceAll(html, "{{AUTO_RTC_DISABLED}}", values.wifiSsid.empty() ? "disabled" : "");
-
-  // 6. 替换动态的时区下拉框 options 列表
+  // 2. 提前拼接时区下拉框列表
   std::ostringstream tzOptions;
   std::size_t timezoneCount = 0;
   const auto* timezones = timezoneCatalog(&timezoneCount);
@@ -124,9 +79,62 @@ std::string buildSetupPageHtml(
     }
     tzOptions << ">" << timezones[i].label << "</option>";
   }
-  html = replaceAll(html, "{{TIMEZONE_OPTION_ITEMS}}", tzOptions.str());
 
-  return html;
+  // 3. 一次扫描流式替换
+  std::ostringstream out;
+  std::string_view temp(SETUP_PAGE_TEMPLATE);
+  size_t lastPos = 0;
+  size_t pos = 0;
+
+  while ((pos = temp.find("{{", lastPos)) != std::string_view::npos) {
+    // 写入占位符之前的片段
+    out << temp.substr(lastPos, pos - lastPos);
+
+    size_t endPos = temp.find("}}", pos);
+    if (endPos == std::string_view::npos) {
+      break;
+    }
+
+    std::string_view placeholder = temp.substr(pos, endPos + 2 - pos);
+    if (placeholder == "{{AP_SSID}}") {
+      out << htmlEscape(apSsid);
+    } else if (placeholder == "{{BATTERY_INFO_STYLE}}") {
+      out << (batteryInfo.empty() ? "display:none;" : "display:flex;");
+    } else if (placeholder == "{{BATTERY_INFO}}") {
+      out << htmlEscape(batteryInfo);
+    } else if (placeholder == "{{WIFI_GRID_ITEMS}}") {
+      out << wifiGrid.str();
+    } else if (placeholder == "{{ERROR_CONTAINER_STYLE}}") {
+      out << (message.empty() ? "display:none;" : "display:flex;");
+    } else if (placeholder == "{{ERROR_MESSAGE}}") {
+      out << htmlEscape(message);
+    } else if (placeholder == "{{WIFI_SSID}}") {
+      out << htmlEscape(values.wifiSsid);
+    } else if (placeholder == "{{WIFI_PASSWORD}}") {
+      out << htmlEscape(values.wifiPassword);
+    } else if (placeholder == "{{NTP_SERVER}}") {
+      out << htmlEscape(values.ntpServer);
+    } else if (placeholder == "{{LATITUDE}}") {
+      out << htmlEscape(values.latitude);
+    } else if (placeholder == "{{LONGITUDE}}") {
+      out << htmlEscape(values.longitude);
+    } else if (placeholder == "{{AUTO_RTC_CHECKED}}") {
+      out << (values.autoRtcCorrection ? "checked" : "");
+    } else if (placeholder == "{{AUTO_RTC_DISABLED}}") {
+      out << (values.wifiSsid.empty() ? "disabled" : "");
+    } else if (placeholder == "{{TIMEZONE_OPTION_ITEMS}}") {
+      out << tzOptions.str();
+    } else {
+      // 无法识别的占位符，原样输出
+      out << placeholder;
+    }
+
+    lastPos = endPos + 2;
+  }
+  
+  // 写入剩余片段
+  out << temp.substr(lastPos);
+  return out.str();
 }
 
 }  // namespace homedeck
