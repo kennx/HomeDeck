@@ -42,6 +42,12 @@
 #include "providers/timezone_catalog.h"
 #include "system/wifi_connection.h"
 
+#ifndef UNIT_TEST
+#define WEATHER_LOG(...) Serial.printf(__VA_ARGS__)
+#else
+#define WEATHER_LOG(...)
+#endif
+
 namespace homedeck {
 
 #ifdef UNIT_TEST
@@ -266,7 +272,11 @@ void renderAlmanacWithOffset(int dayOffset) {
 void renderWeatherWithEnvironment() {
   SetupConfig config = gConfigStore.loadSetupConfig();
   
+  WEATHER_LOG("[Weather] Config values: Lat=%s, Lon=%s, SSID=%s\n", 
+              config.latitude.c_str(), config.longitude.c_str(), config.wifiSsid.c_str());
+
   if (config.wifiSsid.empty() || config.latitude.empty() || config.longitude.empty()) {
+    WEATHER_LOG("[Weather] Direct fallback because config fields are empty\n");
     WeatherData data = makeCurrentWeatherData();
     data.valid = false;
     const EnvironmentReading reading = readSht40Environment();
@@ -283,24 +293,32 @@ void renderWeatherWithEnvironment() {
 
   WeatherProviderDeps providerDeps;
   providerDeps.connectWifi = [](const std::string& ssid, const std::string& pass) {
-    return connectWifiPreservingAccessPoint(ssid, pass, 10000);
+    WEATHER_LOG("[Weather] Connecting to WiFi SSID: %s...\n", ssid.c_str());
+    bool connected = connectWifiPreservingAccessPoint(ssid, pass, 10000);
+    WEATHER_LOG("[Weather] WiFi connect result: %d\n", connected);
+    return connected;
   };
   providerDeps.disconnectWifi = []() {
+    WEATHER_LOG("[Weather] Disconnecting WiFi...\n");
 #ifndef UNIT_TEST
     WiFi.disconnect(true);
 #endif
   };
   providerDeps.httpGet = [](const std::string& url) -> std::pair<int, std::string> {
+    WEATHER_LOG("[Weather] Performing HTTP GET on URL: %s\n", url.c_str());
 #ifndef UNIT_TEST
-    WiFiClientSecure client;
-    client.setInsecure();
+    WiFiClient client;
     HTTPClient http;
     http.begin(client, url.c_str());
     http.setTimeout(10000);
     int code = http.GET();
+    WEATHER_LOG("[Weather] HTTP Code: %d\n", code);
     std::string payload = "";
     if (code == 200) {
       payload = http.getString().c_str();
+      WEATHER_LOG("[Weather] Payload length: %d\n", (int)payload.length());
+    } else {
+      WEATHER_LOG("[Weather] HTTP failed, error: %s\n", http.errorToString(code).c_str());
     }
     http.end();
     return {code, payload};
@@ -312,6 +330,9 @@ void renderWeatherWithEnvironment() {
 
   WeatherResult result = fetchWeather(providerDeps, config.latitude, config.longitude, config.timezoneIana, config.wifiSsid, config.wifiPassword);
   
+  WEATHER_LOG("[Weather] fetchWeather result: ok=%d, temp=%d, code=%d, max=%d, min=%d\n",
+              result.ok, result.currentTemp, result.weatherCode, result.tempMax, result.tempMin);
+
   WeatherData data = makeCurrentWeatherData();
   if (result.ok) {
     data.valid = true;
