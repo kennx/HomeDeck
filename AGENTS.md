@@ -22,10 +22,10 @@
 - `src/app/boot_controller.cpp/h`：启动模式决策逻辑（配置模式 vs 系统模式、设置快捷键、睡眠调度）。
 - `src/app/view_manager.cpp/h`：视图路由与切换管理。
 - `src/views/home_renderer.cpp/h`：电子墨水屏渲染——主 UI。尽量减少绘图操作；避免不必要的刷新。
-- `src/views/`：其他视图组件（`almanac_view`、`calendar_view`、`countdown_view`、`view_common`）。
+- `src/views/`：其他视图组件（`almanac_view`、`calendar_view`、`countdown_view`、`view_common`、`weather_view`）。
 - `src/config/`：配置子系统（`config_types`、`config_store`、`config_validator`、`config_portal`、`setup_page`）。持久化状态保存在 NVS/LittleFS 中。
 - `src/system/`：系统服务（`time_service`、`wifi_connection`、`sht40_reader`、`render_context`）。
-- `src/providers/`：数据提供者（`almanac_provider`、`timezone_catalog`）。
+- `src/providers/`：数据提供者（`almanac_provider`、`timezone_catalog`、`weather_provider`）。
 - `src/generated/`：自动生成资源（设备字体、设置页 HTML）。请勿手动编辑。
 - `test/native/`：使用 Unity 框架的本机（宿主机）单元测试。
 - `tools/`：用于生成年鉴数据和设备字体的 Python 脚本。
