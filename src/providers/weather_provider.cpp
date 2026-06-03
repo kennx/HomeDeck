@@ -36,6 +36,7 @@ WeatherResult fetchWeather(
   }
   
   if (!deps.connectWifi(wifiSsid, wifiPassword)) {
+    deps.disconnectWifi();
     return result;
   }
   
@@ -64,6 +65,10 @@ WeatherResult fetchWeather(
   JsonObject daily = doc["daily"];
   
   if (current.isNull() || daily.isNull()) {
+    return result;
+  }
+
+  if (current["temperature_2m"].isNull() || current["weather_code"].isNull()) {
     return result;
   }
   

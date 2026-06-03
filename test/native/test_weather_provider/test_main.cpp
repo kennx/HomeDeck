@@ -58,12 +58,14 @@ void test_fetch_weather_success() {
 
 void test_fetch_weather_wifi_fail() {
   homedeck::WeatherProviderDeps deps;
+  bool wifiDisconnected = false;
   deps.connectWifi = [](const std::string&, const std::string&) { return false; };
-  deps.disconnectWifi = []() {};
+  deps.disconnectWifi = [&]() { wifiDisconnected = true; };
   deps.httpGet = [](const std::string&) -> std::pair<int, std::string> { return {200, ""}; };
   
   auto result = homedeck::fetchWeather(deps, "25.78", "113.02", "Asia/Shanghai", "SSID", "PASS");
   TEST_ASSERT_FALSE(result.ok);
+  TEST_ASSERT_TRUE(wifiDisconnected);
 }
 
 void test_fetch_weather_http_fail() {
@@ -95,6 +97,32 @@ void test_fetch_weather_missing_current_key() {
     return {200, mockJson};
   };
   
+  auto result = homedeck::fetchWeather(deps, "25.78", "113.02", "Asia/Shanghai", "SSID", "PASS");
+  TEST_ASSERT_FALSE(result.ok);
+}
+
+void test_fetch_weather_missing_current_temperature() {
+  homedeck::WeatherProviderDeps deps;
+  deps.connectWifi = [](const std::string&, const std::string&) { return true; };
+  deps.disconnectWifi = []() {};
+  deps.httpGet = [](const std::string&) -> std::pair<int, std::string> {
+    std::string mockJson = R"({"current":{"weather_code":1},"daily":{"weather_code":[1],"temperature_2m_max":[30],"temperature_2m_min":[20]}})";
+    return {200, mockJson};
+  };
+
+  auto result = homedeck::fetchWeather(deps, "25.78", "113.02", "Asia/Shanghai", "SSID", "PASS");
+  TEST_ASSERT_FALSE(result.ok);
+}
+
+void test_fetch_weather_missing_current_weather_code() {
+  homedeck::WeatherProviderDeps deps;
+  deps.connectWifi = [](const std::string&, const std::string&) { return true; };
+  deps.disconnectWifi = []() {};
+  deps.httpGet = [](const std::string&) -> std::pair<int, std::string> {
+    std::string mockJson = R"({"current":{"temperature_2m":22},"daily":{"weather_code":[1],"temperature_2m_max":[30],"temperature_2m_min":[20]}})";
+    return {200, mockJson};
+  };
+
   auto result = homedeck::fetchWeather(deps, "25.78", "113.02", "Asia/Shanghai", "SSID", "PASS");
   TEST_ASSERT_FALSE(result.ok);
 }
@@ -154,6 +182,8 @@ int main(int, char**) {
   RUN_TEST(test_fetch_weather_http_fail);
   RUN_TEST(test_fetch_weather_malformed_json);
   RUN_TEST(test_fetch_weather_missing_current_key);
+  RUN_TEST(test_fetch_weather_missing_current_temperature);
+  RUN_TEST(test_fetch_weather_missing_current_weather_code);
   RUN_TEST(test_fetch_weather_empty_daily_arrays);
   RUN_TEST(test_fetch_weather_negative_temp);
   RUN_TEST(test_url_encode_special_chars);
