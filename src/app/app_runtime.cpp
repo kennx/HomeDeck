@@ -276,12 +276,20 @@ void renderWeatherWithEnvironment() {
   WEATHER_LOG("[Weather] Config values: Lat=%s, Lon=%s, SSID=%s\n", 
               config.latitude.c_str(), config.longitude.c_str(), config.wifiSsid.c_str());
 
-  if (config.wifiSsid.empty() || config.latitude.empty() || config.longitude.empty() || config.timezoneIana.empty()) {
-    WEATHER_LOG("[Weather] Direct fallback because config fields are empty\n");
-    WeatherData data = makeCurrentWeatherData();
-    if (!applyCachedWeather(data.year, data.month, data.day, data)) {
-      data.valid = false;
+  WeatherData data = makeCurrentWeatherData();
+  bool hasConfig = !config.wifiSsid.empty() && !config.latitude.empty() && 
+                   !config.longitude.empty() && !config.timezoneIana.empty();
+  
+  bool cacheIsFresh = false;
+  if (applyCachedWeather(data.year, data.month, data.day, data)) {
+    const time_t now = time(nullptr);
+    if (now >= data.lastUpdate && (now - data.lastUpdate) < 600) { // 10 minutes cache freshness
+      cacheIsFresh = true;
     }
+  }
+
+  if (!hasConfig || cacheIsFresh) {
+    WEATHER_LOG("[Weather] Skip network request: hasConfig=%d, cacheIsFresh=%d\n", hasConfig, cacheIsFresh);
     const EnvironmentReading reading = readSht40Environment();
     if (reading.ok) {
       data.temperatureAvailable = true;
@@ -339,7 +347,7 @@ void renderWeatherWithEnvironment() {
               result.ok, result.currentTemp, result.weatherCode, result.tempMax, result.tempMin,
               result.relativeHumidity, result.apparentTemperature);
 
-  WeatherData data = makeCurrentWeatherData();
+  data = makeCurrentWeatherData();
   if (result.ok) {
     data.valid = true;
     data.currentTemp = result.currentTemp;
