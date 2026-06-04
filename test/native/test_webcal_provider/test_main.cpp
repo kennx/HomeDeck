@@ -152,7 +152,6 @@ void test_load_cached_festivals_success() {
   TEST_ASSERT_EQUAL_UINT(2, festivals.size());
   TEST_ASSERT_EQUAL_STRING("端午节", festivals["2026-06-04"].c_str());
   TEST_ASSERT_EQUAL_STRING("节日", festivals["2026-06-05"].c_str());
-  TEST_ASSERT_TRUE(LittleFS.ended);
 }
 
 void test_load_cached_festivals_not_exist() {
@@ -160,12 +159,39 @@ void test_load_cached_festivals_not_exist() {
   std::map<std::string, std::string> festivals;
   bool ok = homedeck::loadCachedFestivals(festivals);
   TEST_ASSERT_FALSE(ok);
-  TEST_ASSERT_TRUE(LittleFS.ended);
 }
 
 void test_sync_webcal_festivals_native_returns_false() {
   bool ok = homedeck::syncWebcalFestivals("https://example.com/ics", "ssid", "pass");
   TEST_ASSERT_FALSE(ok);
+}
+
+void test_parse_ics_invalid_dates() {
+  std::string icsData =
+    "BEGIN:VEVENT\r\n"
+    "DTSTART:20261304\r\n"
+    "SUMMARY:无效月份\r\n"
+    "END:VEVENT\r\n"
+    "BEGIN:VEVENT\r\n"
+    "DTSTART:20260004\r\n"
+    "SUMMARY:无效零月\r\n"
+    "END:VEVENT\r\n"
+    "BEGIN:VEVENT\r\n"
+    "DTSTART:20260632\r\n"
+    "SUMMARY:无效日期\r\n"
+    "END:VEVENT\r\n"
+    "BEGIN:VEVENT\r\n"
+    "DTSTART:20260600\r\n"
+    "SUMMARY:无效零日\r\n"
+    "END:VEVENT\r\n";
+
+  StringStream stream(icsData);
+  std::map<std::string, std::string> festivals;
+  std::tm localNow = makeLocalNow();
+
+  bool ok = homedeck::parseIcsStream(stream, localNow, festivals);
+  TEST_ASSERT_TRUE(ok);
+  TEST_ASSERT_TRUE(festivals.empty());
 }
 
 int main(int, char**) {
@@ -175,6 +201,7 @@ int main(int, char**) {
   RUN_TEST(test_parse_ics_unescaping);
   RUN_TEST(test_parse_ics_multiple_events_on_same_day);
   RUN_TEST(test_parse_ics_dtstart_variations);
+  RUN_TEST(test_parse_ics_invalid_dates);
   RUN_TEST(test_load_cached_festivals_success);
   RUN_TEST(test_load_cached_festivals_not_exist);
   RUN_TEST(test_sync_webcal_festivals_native_returns_false);

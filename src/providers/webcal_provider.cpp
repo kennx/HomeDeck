@@ -11,6 +11,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <LittleFS.h>
+#include "system/wifi_connection.h"
 #else
 #include <LittleFS.h>
 #endif
@@ -64,9 +65,15 @@ bool parseDate(const std::string& val, int& outYear, int& outMonth, int& outDay)
   for (int i = 0; i < 8; ++i) {
     if (!std::isdigit(static_cast<unsigned char>(val[i]))) return false;
   }
-  outYear = (val[0] - '0') * 1000 + (val[1] - '0') * 100 + (val[2] - '0') * 10 + (val[3] - '0');
-  outMonth = (val[4] - '0') * 10 + (val[5] - '0');
-  outDay = (val[6] - '0') * 10 + (val[7] - '0');
+  int y = (val[0] - '0') * 1000 + (val[1] - '0') * 100 + (val[2] - '0') * 10 + (val[3] - '0');
+  int m = (val[4] - '0') * 10 + (val[5] - '0');
+  int d = (val[6] - '0') * 10 + (val[7] - '0');
+  if (m < 1 || m > 12 || d < 1 || d > 31) {
+    return false;
+  }
+  outYear = y;
+  outMonth = m;
+  outDay = d;
   return true;
 }
 
@@ -191,13 +198,13 @@ bool parseIcsStream(Stream& stream, const std::tm& localNow, std::map<std::strin
 
 bool syncWebcalFestivals(const std::string& webcalUrl, const std::string& wifiSsid, const std::string& wifiPassword) {
 #if defined(ARDUINO)
-  WiFi.begin(wifiSsid.c_str(), wifiPassword.c_str());
-  unsigned long started = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - started < 15000) {
-    delay(200);
-  }
   if (WiFi.status() != WL_CONNECTED) {
-    return false;
+    if (!wifiSsid.empty()) {
+      connectWifiPreservingAccessPoint(wifiSsid, wifiPassword, 10000);
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+      return false;
+    }
   }
 
   WiFiClientSecure client;
@@ -206,14 +213,12 @@ bool syncWebcalFestivals(const std::string& webcalUrl, const std::string& wifiSs
   HTTPClient http;
   std::string targetUrl = normalizeUrl(webcalUrl);
   if (!http.begin(client, targetUrl.c_str())) {
-    WiFi.disconnect(true);
     return false;
   }
 
   int httpCode = http.GET();
   if (httpCode != HTTP_CODE_OK) {
     http.end();
-    WiFi.disconnect(true);
     return false;
   }
 
@@ -222,26 +227,22 @@ bool syncWebcalFestivals(const std::string& webcalUrl, const std::string& wifiSs
   std::tm* localNow = std::localtime(&now);
   if (localNow == nullptr) {
     http.end();
-    WiFi.disconnect(true);
     return false;
   }
 
   std::map<std::string, std::string> outFestivals;
   bool parseOk = parseIcsStream(stream, *localNow, outFestivals);
   http.end();
-  WiFi.disconnect(true);
 
   if (!parseOk) {
     return false;
   }
 
   if (!LittleFS.begin()) {
-    LittleFS.end();
     return false;
   }
   File file = LittleFS.open("/webcal_cache.json", "w");
   if (!file) {
-    LittleFS.end();
     return false;
   }
 
@@ -254,7 +255,6 @@ bool syncWebcalFestivals(const std::string& webcalUrl, const std::string& wifiSs
   serializeJson(doc, jsonStr);
   size_t bytesWritten = file.write(reinterpret_cast<const uint8_t*>(jsonStr.c_str()), jsonStr.size());
   file.close();
-  LittleFS.end();
 
   return bytesWritten > 0;
 #else
@@ -267,23 +267,19 @@ bool syncWebcalFestivals(const std::string& webcalUrl, const std::string& wifiSs
 
 bool loadCachedFestivals(std::map<std::string, std::string>& outFestivals) {
   if (!LittleFS.begin()) {
-    LittleFS.end();
     return false;
   }
   if (!LittleFS.exists("/webcal_cache.json")) {
-    LittleFS.end();
     return false;
   }
   File file = LittleFS.open("/webcal_cache.json", "r");
   if (!file) {
-    LittleFS.end();
     return false;
   }
   size_t size = file.size();
   std::vector<char> buf(size + 1, '\0');
   size_t bytesRead = file.read(reinterpret_cast<uint8_t*>(buf.data()), size);
   file.close();
-  LittleFS.end();
 
   if (bytesRead == 0) {
     return false;
