@@ -2,6 +2,7 @@
 
 #include <ctime>
 #include <string>
+#include <cstdint>
 
 namespace homedeck {
 
@@ -11,6 +12,9 @@ struct WeatherData {
   int weatherCode = 0;
   int tempMax = 0;
   int tempMin = 0;
+  int relativeHumidity = 0;      // API 相对湿度 (%)
+  int apparentTemperature = 0;   // API 体感温度 (°C)
+  uint32_t lastUpdate = 0;        // 数据更新时间戳
 
   int year = 0;
   int month = 0;
@@ -36,6 +40,9 @@ struct WeatherCache {
   int weatherCode = 0;
   int tempMax = 0;
   int tempMin = 0;
+  int relativeHumidity = 0;
+  int apparentTemperature = 0;
+  uint32_t lastUpdate = 0;
 };
 
 extern WeatherCache gWeatherCache;

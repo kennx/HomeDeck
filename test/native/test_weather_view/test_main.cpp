@@ -92,6 +92,9 @@ void test_weather_cache_write_and_apply() {
   source.weatherCode = 1;
   source.tempMax = 32;
   source.tempMin = 22;
+  source.relativeHumidity = 65;
+  source.apparentTemperature = 29;
+  source.lastUpdate = 1780536954;
 
   homedeck::writeWeatherCache(source);
 
@@ -107,6 +110,9 @@ void test_weather_cache_write_and_apply() {
   TEST_ASSERT_EQUAL(1, target.weatherCode);
   TEST_ASSERT_EQUAL(32, target.tempMax);
   TEST_ASSERT_EQUAL(22, target.tempMin);
+  TEST_ASSERT_EQUAL(65, target.relativeHumidity);
+  TEST_ASSERT_EQUAL(29, target.apparentTemperature);
+  TEST_ASSERT_EQUAL(1780536954, target.lastUpdate);
 }
 
 void test_weather_cache_date_mismatch() {

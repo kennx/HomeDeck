@@ -54,6 +54,9 @@ void writeWeatherCache(const WeatherData& data) {
   gWeatherCache.weatherCode = data.weatherCode;
   gWeatherCache.tempMax = data.tempMax;
   gWeatherCache.tempMin = data.tempMin;
+  gWeatherCache.relativeHumidity = data.relativeHumidity;
+  gWeatherCache.apparentTemperature = data.apparentTemperature;
+  gWeatherCache.lastUpdate = data.lastUpdate;
 }
 
 bool applyCachedWeather(int year, int month, int day, WeatherData& data) {
@@ -65,6 +68,9 @@ bool applyCachedWeather(int year, int month, int day, WeatherData& data) {
   data.weatherCode = gWeatherCache.weatherCode;
   data.tempMax = gWeatherCache.tempMax;
   data.tempMin = gWeatherCache.tempMin;
+  data.relativeHumidity = gWeatherCache.relativeHumidity;
+  data.apparentTemperature = gWeatherCache.apparentTemperature;
+  data.lastUpdate = gWeatherCache.lastUpdate;
   return true;
 }
 
