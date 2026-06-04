@@ -17,7 +17,9 @@ class CalendarView {
  public:
   struct WeeklyDayInfo {
     std::tm tmVal;
-    std::string lunarDate;
+    std::string lunarDate;       // 原始完整农历日期
+    std::string lunarMonth;      // 农历月份（如"三月"），空表示无法拆分
+    std::string lunarDay;        // 农历日期（如"十五"）
     std::string lunarFestival;
     std::string solarTerm;
     std::string webcalFestival;

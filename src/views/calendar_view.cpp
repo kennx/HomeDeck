@@ -96,6 +96,8 @@ void CalendarView::render(const CalendarData& data) {
       daysInfo_[i].tmVal = t;
       daysInfo_[i].isToday = false;
       daysInfo_[i].lunarDate.clear();
+      daysInfo_[i].lunarMonth.clear();
+      daysInfo_[i].lunarDay.clear();
       daysInfo_[i].lunarFestival.clear();
       daysInfo_[i].solarTerm.clear();
       daysInfo_[i].webcalFestival.clear();
@@ -139,6 +141,16 @@ void CalendarView::render(const CalendarData& data) {
           daysInfo_[i].lunarDate = almanac.lunarDate;
           daysInfo_[i].lunarFestival = lookupLunarFestival(almanac.lunarDate);
           daysInfo_[i].solarTerm = almanac.solarTerm;
+
+          // 拆分农历日期为月份和日期（如 "三月十五" → "三月" + "十五"）
+          const auto monthPos = almanac.lunarDate.find("月");
+          if (monthPos != std::string::npos && monthPos + 3 < almanac.lunarDate.size()) {
+            daysInfo_[i].lunarMonth = almanac.lunarDate.substr(0, monthPos + 3);
+            daysInfo_[i].lunarDay = almanac.lunarDate.substr(monthPos + 3);
+          } else {
+            daysInfo_[i].lunarMonth.clear();
+            daysInfo_[i].lunarDay = almanac.lunarDate;
+          }
           break;
         }
       }
@@ -184,7 +196,7 @@ void CalendarView::render(const CalendarData& data) {
     static constexpr const char* kWeeklyWeekdayLabels[] = {"一", "二", "三", "四", "五", "六", "日"};
     for (int col = 0; col < 7; ++col) {
       const int cx = cellCenterX(col);
-      canvas.drawString(kWeeklyWeekdayLabels[col], cx, 140);
+      canvas.drawString(kWeeklyWeekdayLabels[col], cx, 50);
     }
     canvas.unloadFont();
   }
@@ -194,7 +206,7 @@ void CalendarView::render(const CalendarData& data) {
     canvas.setTextDatum(textdatum_t::middle_center);
     for (int col = 0; col < 7; ++col) {
       const int cx = cellCenterX(col);
-      const int cy = 220;
+      const int cy = 96;
 
       if (daysInfo_[col].isToday) {
         canvas.fillSmoothCircle(cx, cy, 20, TFT_BLACK);
@@ -210,20 +222,40 @@ void CalendarView::render(const CalendarData& data) {
   // 8. 渲染 Row 3 (农历日期/节日/节气)
   if (canvas.loadFont(generated::kDeviceLunarFontVlw)) {
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
-    canvas.setTextDatum(textdatum_t::middle_center);
+    constexpr int kLunarDateY = 140;
+    constexpr int kLunarLineGap = 2;
     for (int col = 0; col < 7; ++col) {
       const int cx = cellCenterX(col);
 
-      std::string rawLunarText = daysInfo_[col].lunarFestival;
-      if (rawLunarText.empty()) {
-        rawLunarText = daysInfo_[col].solarTerm;
-      }
-      if (rawLunarText.empty()) {
-        rawLunarText = daysInfo_[col].lunarDate;
-      }
+      std::string displayText;
+      if (!daysInfo_[col].lunarFestival.empty()) {
+        displayText = truncateUtf8(daysInfo_[col].lunarFestival, 4);
+        canvas.setTextDatum(textdatum_t::middle_center);
+        canvas.drawString(displayText.c_str(), cx, kLunarDateY);
+      } else if (!daysInfo_[col].solarTerm.empty()) {
+        displayText = truncateUtf8(daysInfo_[col].solarTerm, 4);
+        canvas.setTextDatum(textdatum_t::middle_center);
+        canvas.drawString(displayText.c_str(), cx, kLunarDateY);
+      } else {
+        // 农历日期：月份变化时显示两行（上月份下日期），否则只显示日期
+        bool showMonth = false;
+        if (col == 0) {
+          showMonth = true;
+        } else if (!daysInfo_[col].lunarMonth.empty() &&
+                   daysInfo_[col].lunarMonth != daysInfo_[col - 1].lunarMonth) {
+          showMonth = true;
+        }
 
-      std::string lunarText = truncateUtf8(rawLunarText, 4);
-      canvas.drawString(lunarText.c_str(), cx, 300);
+        if (showMonth && !daysInfo_[col].lunarMonth.empty()) {
+          canvas.setTextDatum(textdatum_t::bottom_center);
+          canvas.drawString(daysInfo_[col].lunarMonth.c_str(), cx, kLunarDateY - kLunarLineGap);
+          canvas.setTextDatum(textdatum_t::top_center);
+          canvas.drawString(daysInfo_[col].lunarDay.c_str(), cx, kLunarDateY + kLunarLineGap);
+        } else {
+          canvas.setTextDatum(textdatum_t::middle_center);
+          canvas.drawString(daysInfo_[col].lunarDay.c_str(), cx, kLunarDateY);
+        }
+      }
     }
     canvas.unloadFont();
   }
@@ -256,7 +288,7 @@ void CalendarView::render(const CalendarData& data) {
         int linesDrawn = 0;
         for (const auto& tok : tokens) {
           if (linesDrawn >= 3) break;
-          int lineY = 350 + linesDrawn * 16;
+          int lineY = 182 + linesDrawn * 16;
           canvas.drawString(truncateUtf8(tok, 4).c_str(), cx, lineY);
           linesDrawn++;
         }
