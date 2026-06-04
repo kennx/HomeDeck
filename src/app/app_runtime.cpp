@@ -344,6 +344,9 @@ void renderWeatherWithEnvironment() {
     data.weatherCode = result.weatherCode;
     data.tempMax = result.tempMax;
     data.tempMin = result.tempMin;
+    data.relativeHumidity = result.relativeHumidity;
+    data.apparentTemperature = result.apparentTemperature;
+    data.lastUpdate = static_cast<uint32_t>(time(nullptr));
     writeWeatherCache(data);
   } else {
     if (!applyCachedWeather(data.year, data.month, data.day, data)) {
