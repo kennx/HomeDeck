@@ -12,6 +12,7 @@ BODY_FONT = ROOT / "fonts" / "misans" / "MiSans-Bold.ttf"
 METRIC_FONT = ROOT / "fonts" / "misans" / "MiSans-Bold.ttf"
 TIME_FONT = ROOT / "fonts" / "misans" / "MiSans-Heavy.ttf"
 CONFIG_FONT = ROOT / "fonts" / "misans" / "MiSans-Semibold.ttf"
+LUNAR_FONT = ROOT / "fonts" / "misans" / "MiSans-Normal.ttf"
 BODY_PIXEL_SIZE = 20
 METRIC_PIXEL_SIZE = 28
 TIME_PIXEL_SIZE = 42
@@ -232,7 +233,7 @@ namespace homedeck::generated {{
 
 
 def main() -> None:
-    for font_path in (BODY_FONT, METRIC_FONT, TIME_FONT, CONFIG_FONT):
+    for font_path in (BODY_FONT, METRIC_FONT, TIME_FONT, CONFIG_FONT, LUNAR_FONT):
         if not font_path.exists():
             raise SystemExit(f"source font missing: {font_path}")
 
@@ -250,6 +251,13 @@ def main() -> None:
 
     resources = [
         FontResource("device_font", "kDevice", BODY_PIXEL_SIZE, body_codepoints, BODY_FONT),
+        FontResource(
+            "device_lunar_font",
+            "kDeviceLunar",
+            12,
+            body_codepoints,
+            LUNAR_FONT,
+        ),
         FontResource(
             "device_large_date_font",
             "kDeviceLargeDate",

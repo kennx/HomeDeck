@@ -94,6 +94,29 @@ void test_config_portal_redirects_unknown_paths_to_index() {
   TEST_ASSERT_EQUAL_STRING("http://192.168.4.1/", gLastWebServer->headers_["Location"].c_str());
 }
 
+void test_config_portal_saves_submitted_webcal_url() {
+  homedeck::ConfigPortal portal;
+  homedeck::SetupConfig savedConfig{};
+  bool callbackCalled = false;
+
+  portal.begin("HomeDeck-ABCD", defaultConfig(), [&](const homedeck::SetupConfig& config, const homedeck::ManualDateTime&) {
+    savedConfig = config;
+    callbackCalled = true;
+    return homedeck::ConfigValidationResult{};
+  });
+
+  gLastWebServer->args_["wifi_ssid"] = "Cafe";
+  gLastWebServer->args_["wifi_password"] = "secret";
+  gLastWebServer->args_["timezone"] = "Asia/Shanghai";
+  gLastWebServer->args_["auto_rtc"] = "1";
+  gLastWebServer->args_["ntp_server"] = "pool.ntp.org";
+  gLastWebServer->args_["webcal_url"] = "http://example.com/cal.ics";
+
+  TEST_ASSERT_TRUE(gLastWebServer->invoke("/save", HTTP_POST));
+  TEST_ASSERT_TRUE(callbackCalled);
+  TEST_ASSERT_EQUAL_STRING("http://example.com/cal.ics", savedConfig.webcalUrl.c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_config_portal_starts_dns_wildcard_to_soft_ap_ip);
@@ -101,5 +124,6 @@ int main(int, char**) {
   RUN_TEST(test_config_portal_serves_index_on_soft_ap_root);
   RUN_TEST(test_config_portal_redirects_common_probe_paths_to_index);
   RUN_TEST(test_config_portal_redirects_unknown_paths_to_index);
+  RUN_TEST(test_config_portal_saves_submitted_webcal_url);
   return UNITY_END();
 }

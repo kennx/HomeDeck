@@ -79,6 +79,10 @@ SetupConfig ConfigPortal::readConfigFromRequest() {
   config.latitude = trimmedLat.empty() ? kDefaultLatitude : std::string(trimmedLat);
   config.longitude = trimmedLon.empty() ? kDefaultLongitude : std::string(trimmedLon);
 
+  if (server_.hasArg("webcal_url")) {
+    config.webcalUrl = server_.arg("webcal_url").c_str();
+  }
+
   return config;
 }
 

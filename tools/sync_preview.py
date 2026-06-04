@@ -42,6 +42,7 @@ def main():
     content = re.sub(r'id="ntp_server"\s+name="ntp_server"\s+value="ntp\.aliyun\.com"', 'id="ntp_server" name="ntp_server" value="{{NTP_SERVER}}"', content)
     content = re.sub(r'id="latitude"\s+name="latitude"\s+value=""', 'id="latitude" name="latitude" value="{{LATITUDE}}"', content)
     content = re.sub(r'id="longitude"\s+name="longitude"\s+value=""', 'id="longitude" name="longitude" value="{{LONGITUDE}}"', content)
+    content = re.sub(r'id="webcal_url"\s+name="webcal_url"\s+value=""', 'id="webcal_url" name="webcal_url" value="{{WEBCAL_URL}}"', content)
     
     # 写入前断言所有占位符均已正确注入
     required_placeholders = [
@@ -49,7 +50,7 @@ def main():
         '{{ERROR_CONTAINER_STYLE}}', '{{ERROR_MESSAGE}}', '{{WIFI_SSID}}',
         '{{WIFI_PASSWORD}}', '{{NTP_SERVER}}', '{{LATITUDE}}', '{{LONGITUDE}}',
         '{{AUTO_RTC_CHECKED}}', '{{AUTO_RTC_DISABLED}}',
-        '{{BATTERY_INFO_STYLE}}', '{{BATTERY_INFO}}'
+        '{{BATTERY_INFO_STYLE}}', '{{BATTERY_INFO}}', '{{WEBCAL_URL}}'
     ]
     missing = [ph for ph in required_placeholders if ph not in content]
     if missing:

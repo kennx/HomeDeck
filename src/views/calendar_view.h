@@ -36,17 +36,32 @@ void applySht40ToCalendar(CalendarData& data);
 
 class CalendarView {
  public:
+  struct WeeklyDayInfo {
+    std::tm tmVal;
+    std::string lunarDate;
+    std::string lunarFestival;
+    std::string solarTerm;
+    std::string webcalFestival;
+    bool isToday = false;
+  };
+
   void render();
   void render(const CalendarData& data);
-  void renderWithOffset(int monthOffset);
+  void renderWithOffset(int weekOffset);
   void renderSleep();
-  void onButtonA();  // prev month
-  void onButtonB();  // next month
+  void onButtonA();  // prev week
+  void onButtonB();  // next week
   void reset();      // reset offset and render
   void resetOffset(); // reset offset only, no render
 
  private:
-  int monthOffset_ = 0;
+  int weekOffset_ = 0;
+  WeeklyDayInfo daysInfo_[7];
+  bool hasCachedDaysInfo_ = false;
+  int cachedWeekOffset_ = -9999;
+  int cachedTodayMday_ = -1;
+  int cachedTodayMon_ = -1;
+  int cachedTodayYear_ = -1;
 };
 
 }  // namespace homedeck

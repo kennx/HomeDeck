@@ -13,8 +13,8 @@ constexpr std::time_t kTrustedUnixTimeThreshold = 1704067200;
 constexpr std::uint64_t kMicrosPerSecond = 1000000ULL;
 constexpr std::uint64_t kFallbackSleepSeconds = 3600ULL;
 constexpr int kButtonCWakeupGpio = 1;
-constexpr int kCalendarMonthOffsetMin = -120;
-constexpr int kCalendarMonthOffsetMax = 120;
+constexpr int kCalendarWeekOffsetMin = -520;
+constexpr int kCalendarWeekOffsetMax = 520;
 constexpr int kAlmanacDayOffsetMin = -3650;
 constexpr int kAlmanacDayOffsetMax = 3650;
 
@@ -64,12 +64,46 @@ void BootController::update() {
     return;
   }
 
+  const bool btnCPressed = deps_.isBtnCPressed ? deps_.isBtnCPressed() : false;
+  if (btnCPressed) {
+    if (btnCPressedSinceMs_ == 0) {
+      btnCPressedSinceMs_ = now;
+      btnCIgnoreNextClick_ = false;
+    } else if (now - btnCPressedSinceMs_ >= 3000 && !btnCLongPressedConsumed_) {
+      btnCLongPressedConsumed_ = true;
+      btnCIgnoreNextClick_ = true;
+      SystemView view = currentView();
+      if (view == SystemView::Calendar || view == SystemView::Weather) {
+        if (deps_.syncNetworkResources) {
+          deps_.syncNetworkResources();
+        }
+        if (view == SystemView::Calendar) {
+          if (deps_.renderCalendarWithOffset) {
+            deps_.renderCalendarWithOffset(calendarWeekOffset_);
+          }
+        } else if (view == SystemView::Weather) {
+          if (deps_.renderWeather) {
+            deps_.renderWeather();
+          }
+        }
+      }
+      lastActivityMs_ = now;
+    }
+  } else {
+    btnCPressedSinceMs_ = 0;
+    btnCLongPressedConsumed_ = false;
+  }
+
   // 1. 检测 BtnC（视图切换 / 双击回本月）
-  const int btnCClicks = deps_.getCalendarButtonClickCount ? deps_.getCalendarButtonClickCount() : 0;
+  int btnCClicks = deps_.getCalendarButtonClickCount ? deps_.getCalendarButtonClickCount() : 0;
+  if (btnCIgnoreNextClick_ && btnCClicks > 0) {
+    btnCIgnoreNextClick_ = false;
+    btnCClicks = 0;
+  }
   if (btnCClicks == 1) {
     if (viewManager_) {
       // 切换视图前重置所有 offset，确保每次进入视图都是初始状态
-      calendarMonthOffset_ = 0;
+      calendarWeekOffset_ = 0;
       almanacDayOffset_ = 0;
       if (deps_.resetCalendarView) {
         deps_.resetCalendarView();
@@ -87,7 +121,7 @@ void BootController::update() {
   } else if (btnCClicks >= 2) {
     if (viewManager_) {
       if (viewManager_->currentView() == SystemView::Calendar) {
-        calendarMonthOffset_ = 0;
+        calendarWeekOffset_ = 0;
         if (deps_.renderCalendarWithOffset) {
           deps_.renderCalendarWithOffset(0);
         }
@@ -113,18 +147,18 @@ void BootController::update() {
   if (viewManager_ && viewManager_->currentView() == SystemView::Calendar) {
     bool calendarUpdated = false;
     if (deps_.wasPrevMonthClicked && deps_.wasPrevMonthClicked()) {
-      if (calendarMonthOffset_ > kCalendarMonthOffsetMin) {
-        calendarMonthOffset_--;
+      if (calendarWeekOffset_ > kCalendarWeekOffsetMin) {
+        calendarWeekOffset_--;
         calendarUpdated = true;
       }
     } else if (deps_.wasNextMonthClicked && deps_.wasNextMonthClicked()) {
-      if (calendarMonthOffset_ < kCalendarMonthOffsetMax) {
-        calendarMonthOffset_++;
+      if (calendarWeekOffset_ < kCalendarWeekOffsetMax) {
+        calendarWeekOffset_++;
         calendarUpdated = true;
       }
     }
     if (calendarUpdated && deps_.renderCalendarWithOffset) {
-      deps_.renderCalendarWithOffset(calendarMonthOffset_);
+      deps_.renderCalendarWithOffset(calendarWeekOffset_);
       lastActivityMs_ = now;
     }
   }
@@ -173,11 +207,20 @@ void BootController::enterSystemMode() {
   setupButtonsWerePressed_ = false;
   setupShortcutConsumed_ = false;
   homeSleepRequested_ = false;
-  calendarMonthOffset_ = 0;
+  calendarWeekOffset_ = 0;
   almanacDayOffset_ = 0;
+  btnCPressedSinceMs_ = 0;
+  btnCLongPressedConsumed_ = false;
+  btnCIgnoreNextClick_ = false;
 
   if (deps_.restoreSystemTimeFromRtc) {
     deps_.restoreSystemTimeFromRtc();
+  }
+
+  if (deps_.isWakeUpFromDeepSleep && deps_.isWakeUpFromDeepSleep()) {
+    if (deps_.syncNetworkResources) {
+      deps_.syncNetworkResources();
+    }
   }
 
   ViewManagerDeps vmDeps{};
@@ -202,7 +245,7 @@ void BootController::updateHomeSleep(unsigned long now) {
   }
 
   homeSleepRequested_ = true;
-  calendarMonthOffset_ = 0;
+  calendarWeekOffset_ = 0;
   almanacDayOffset_ = 0;
 
   // 进入 deep sleep 前重置当前视图的 offset，确保休眠画面显示初始状态

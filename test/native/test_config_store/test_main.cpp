@@ -22,6 +22,7 @@ void test_load_defaults_when_empty() {
   TEST_ASSERT_EQUAL_STRING("pool.ntp.org", config.ntpServer.c_str());
   TEST_ASSERT_EQUAL_STRING(homedeck::kDefaultLatitude, config.latitude.c_str());
   TEST_ASSERT_EQUAL_STRING(homedeck::kDefaultLongitude, config.longitude.c_str());
+  TEST_ASSERT_EQUAL_STRING("", config.webcalUrl.c_str());
   TEST_ASSERT_FALSE(flags.configured);
   TEST_ASSERT_FALSE(flags.forceConfigOnNextBoot);
 }
@@ -37,6 +38,7 @@ void test_save_and_load_config_and_flags() {
   config.ntpServer = "time.cloudflare.com";
   config.latitude = "39.9042";
   config.longitude = "116.4074";
+  config.webcalUrl = "http://example.com/calendar.ics";
 
   TEST_ASSERT_TRUE(store.saveSetupConfig(config));
   TEST_ASSERT_TRUE(store.saveConfigured(true));
@@ -52,6 +54,7 @@ void test_save_and_load_config_and_flags() {
   TEST_ASSERT_EQUAL_STRING("time.cloudflare.com", loaded.ntpServer.c_str());
   TEST_ASSERT_EQUAL_STRING("39.9042", loaded.latitude.c_str());
   TEST_ASSERT_EQUAL_STRING("116.4074", loaded.longitude.c_str());
+  TEST_ASSERT_EQUAL_STRING("http://example.com/calendar.ics", loaded.webcalUrl.c_str());
   TEST_ASSERT_TRUE(flags.configured);
   TEST_ASSERT_TRUE(flags.forceConfigOnNextBoot);
 }
