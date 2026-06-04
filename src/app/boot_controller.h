@@ -85,6 +85,7 @@ class BootController {
   int almanacDayOffset_ = 0;
   unsigned long btnCPressedSinceMs_ = 0;
   bool btnCLongPressedConsumed_ = false;
+  bool btnCIgnoreNextClick_ = false;
   std::unique_ptr<ViewManager> viewManager_;
 };
 

@@ -68,8 +68,10 @@ void BootController::update() {
   if (btnCPressed) {
     if (btnCPressedSinceMs_ == 0) {
       btnCPressedSinceMs_ = now;
+      btnCIgnoreNextClick_ = false;
     } else if (now - btnCPressedSinceMs_ >= 3000 && !btnCLongPressedConsumed_) {
       btnCLongPressedConsumed_ = true;
+      btnCIgnoreNextClick_ = true;
       SystemView view = currentView();
       if (view == SystemView::Calendar || view == SystemView::Weather) {
         if (deps_.syncNetworkResources) {
@@ -93,7 +95,11 @@ void BootController::update() {
   }
 
   // 1. 检测 BtnC（视图切换 / 双击回本月）
-  const int btnCClicks = deps_.getCalendarButtonClickCount ? deps_.getCalendarButtonClickCount() : 0;
+  int btnCClicks = deps_.getCalendarButtonClickCount ? deps_.getCalendarButtonClickCount() : 0;
+  if (btnCIgnoreNextClick_ && btnCClicks > 0) {
+    btnCIgnoreNextClick_ = false;
+    btnCClicks = 0;
+  }
   if (btnCClicks == 1) {
     if (viewManager_) {
       // 切换视图前重置所有 offset，确保每次进入视图都是初始状态
@@ -205,6 +211,7 @@ void BootController::enterSystemMode() {
   almanacDayOffset_ = 0;
   btnCPressedSinceMs_ = 0;
   btnCLongPressedConsumed_ = false;
+  btnCIgnoreNextClick_ = false;
 
   if (deps_.restoreSystemTimeFromRtc) {
     deps_.restoreSystemTimeFromRtc();

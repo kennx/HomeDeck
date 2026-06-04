@@ -946,6 +946,35 @@ void test_long_press_btnc_in_almanac_view_does_not_trigger_sync() {
   TEST_ASSERT_FALSE(f.syncNetworkResourcesCalled);
 }
 
+void test_long_press_btnc_does_not_switch_view_on_release() {
+  Fixture f{};
+  f.configured = true;
+  homedeck::BootController controller{f.deps()};
+  controller.begin();
+  
+  TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
+
+  // 按下 BtnC 并保持 3000ms
+  f.isBtnCPressedVal = true;
+  f.now = 100;
+  controller.update();
+  f.now = 3100;
+  controller.update();
+
+  // 释放 BtnC，并且由于释放产生了 1 次点击计数
+  f.isBtnCPressedVal = false;
+  f.calendarButtonClickCount = 1;
+  controller.update();
+
+  // 验证视图仍然是 Almanac (没有切换到 Calendar)
+  TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
+
+  // 下一次正常的 1 次点击，应该能正常切换视图
+  f.calendarButtonClickCount = 1;
+  controller.update();
+  TEST_ASSERT_EQUAL(homedeck::SystemView::Calendar, controller.currentView());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_first_boot_enters_config_mode);
@@ -995,6 +1024,7 @@ int main(int, char**) {
   RUN_TEST(test_long_press_btnc_in_calendar_view_triggers_sync);
   RUN_TEST(test_long_press_btnc_in_weather_view_triggers_sync);
   RUN_TEST(test_long_press_btnc_in_almanac_view_does_not_trigger_sync);
+  RUN_TEST(test_long_press_btnc_does_not_switch_view_on_release);
 
   return UNITY_END();
 }
