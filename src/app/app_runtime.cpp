@@ -28,6 +28,7 @@
 #include "config/config_store.h"
 #include "views/almanac_view.h"
 #include "views/calendar_view.h"
+#include "providers/webcal_provider.h"
 #include "views/countdown_view.h"
 #include "config/config_portal_renderer.h"
 #include "views/weather_view.h"
@@ -423,6 +424,84 @@ void enterHomeDeepSleep(const HomeSleepRequest& request) {
 
 namespace {
 
+void syncAllNetworkResources() {
+  SetupConfig config = gConfigStore.loadSetupConfig();
+  if (config.wifiSsid.empty()) {
+    return;
+  }
+
+  if (!connectWifiPreservingAccessPoint(config.wifiSsid, config.wifiPassword, 10000)) {
+    return;
+  }
+
+  // 1. 同步时间 (NTP)
+  time_t syncedUnix = 0;
+  if (config.autoRtcCorrection && !config.ntpServer.empty()) {
+    if (syncNtp(config.timezoneIana, config.ntpServer, &syncedUnix)) {
+      writeRtcUtc(syncedUnix);
+      if (gTimeService) {
+        gTimeService->restoreSystemTimeFromRtc();
+        gTimeService->applyTimezone(config.timezoneIana);
+      }
+    }
+  }
+
+  // 2. 同步天气 (fetchWeather)
+  if (!config.latitude.empty() && !config.longitude.empty()) {
+    WeatherProviderDeps providerDeps;
+    providerDeps.connectWifi = [](const std::string&, const std::string&) {
+      return true;
+    };
+    providerDeps.disconnectWifi = []() {
+      // 保持连接，由外层统一断开
+    };
+    providerDeps.httpGet = [](const std::string& url) -> std::pair<int, std::string> {
+#ifndef UNIT_TEST
+      WiFiClientSecure client;
+      client.setInsecure();
+      HTTPClient http;
+      http.begin(client, url.c_str());
+      http.setConnectTimeout(5000);
+      http.setTimeout(10000);
+      int code = http.GET();
+      std::string payload = "";
+      if (code == 200) {
+        payload = http.getString().c_str();
+      }
+      http.end();
+      return {code, payload};
+#else
+      (void)url;
+      return {500, ""};
+#endif
+    };
+
+    WeatherResult result = fetchWeather(providerDeps, config.latitude, config.longitude, config.timezoneIana, config.wifiSsid, config.wifiPassword);
+    if (result.ok) {
+      WeatherData data = makeCurrentWeatherData();
+      data.valid = true;
+      data.currentTemp = result.currentTemp;
+      data.weatherCode = result.weatherCode;
+      data.tempMax = result.tempMax;
+      data.tempMin = result.tempMin;
+      data.relativeHumidity = result.relativeHumidity;
+      data.apparentTemperature = result.apparentTemperature;
+      data.lastUpdate = static_cast<uint32_t>(time(nullptr));
+      writeWeatherCache(data);
+    }
+  }
+
+  // 3. 同步 Webcal 节日数据 (ICS)
+  if (!config.webcalUrl.empty()) {
+    syncWebcalFestivals(config.webcalUrl, config.wifiSsid, config.wifiPassword);
+  }
+
+  // 4. 断开 WiFi
+#ifndef UNIT_TEST
+  WiFi.disconnect(true);
+#endif
+}
+
 BootControllerDeps makeBootDeps() {
   BootControllerDeps deps{};
   deps.loadFlags = []() { return gConfigStore.loadBootFlags(); };
@@ -490,6 +569,15 @@ BootControllerDeps makeBootDeps() {
     }
   };
   deps.enterDeepSleep = enterHomeDeepSleep;
+
+#ifndef UNIT_TEST
+  deps.isWakeUpFromDeepSleep = []() { return esp_reset_reason() == ESP_RST_DEEPSLEEP; };
+#else
+  deps.isWakeUpFromDeepSleep = []() { return false; };
+#endif
+  deps.isBtnCPressed = []() { return M5.BtnC.isPressed(); };
+  deps.syncNetworkResources = syncAllNetworkResources;
+
   return deps;
 }
 

@@ -52,6 +52,9 @@ struct BootControllerDeps {
   std::function<void()> resetAlmanacView;
   std::function<void(SystemView)> preSleepRender;
   std::function<void(const HomeSleepRequest&)> enterDeepSleep;
+  std::function<bool()> isWakeUpFromDeepSleep;
+  std::function<bool()> isBtnCPressed;
+  std::function<void()> syncNetworkResources;
 };
 
 class BootController {
@@ -80,6 +83,8 @@ class BootController {
   bool homeSleepRequested_ = false;
   int calendarMonthOffset_ = 0;
   int almanacDayOffset_ = 0;
+  unsigned long btnCPressedSinceMs_ = 0;
+  bool btnCLongPressedConsumed_ = false;
   std::unique_ptr<ViewManager> viewManager_;
 };
 

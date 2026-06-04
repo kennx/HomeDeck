@@ -64,6 +64,34 @@ void BootController::update() {
     return;
   }
 
+  const bool btnCPressed = deps_.isBtnCPressed ? deps_.isBtnCPressed() : false;
+  if (btnCPressed) {
+    if (btnCPressedSinceMs_ == 0) {
+      btnCPressedSinceMs_ = now;
+    } else if (now - btnCPressedSinceMs_ >= 3000 && !btnCLongPressedConsumed_) {
+      btnCLongPressedConsumed_ = true;
+      SystemView view = currentView();
+      if (view == SystemView::Calendar || view == SystemView::Weather) {
+        if (deps_.syncNetworkResources) {
+          deps_.syncNetworkResources();
+        }
+        if (view == SystemView::Calendar) {
+          if (deps_.renderCalendarWithOffset) {
+            deps_.renderCalendarWithOffset(calendarMonthOffset_);
+          }
+        } else if (view == SystemView::Weather) {
+          if (deps_.renderWeather) {
+            deps_.renderWeather();
+          }
+        }
+      }
+      lastActivityMs_ = now;
+    }
+  } else {
+    btnCPressedSinceMs_ = 0;
+    btnCLongPressedConsumed_ = false;
+  }
+
   // 1. 检测 BtnC（视图切换 / 双击回本月）
   const int btnCClicks = deps_.getCalendarButtonClickCount ? deps_.getCalendarButtonClickCount() : 0;
   if (btnCClicks == 1) {
@@ -175,9 +203,17 @@ void BootController::enterSystemMode() {
   homeSleepRequested_ = false;
   calendarMonthOffset_ = 0;
   almanacDayOffset_ = 0;
+  btnCPressedSinceMs_ = 0;
+  btnCLongPressedConsumed_ = false;
 
   if (deps_.restoreSystemTimeFromRtc) {
     deps_.restoreSystemTimeFromRtc();
+  }
+
+  if (deps_.isWakeUpFromDeepSleep && deps_.isWakeUpFromDeepSleep()) {
+    if (deps_.syncNetworkResources) {
+      deps_.syncNetworkResources();
+    }
   }
 
   ViewManagerDeps vmDeps{};
