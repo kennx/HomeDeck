@@ -78,9 +78,9 @@
     int tempMin = 0;
     int relativeHumidity = 0;      // 新增相对湿度 (%)
     int apparentTemperature = 0;   // 新增体感温度 (°C)
-    uint32_t lastUpdate = 0;        // 新增请求成功的本地时间戳 (UNIX)
   };
   ```
+  > **注意：** `lastUpdate`（请求成功的本地 UNIX 时间戳）不属于 `WeatherResult`，由 `app_runtime.cpp` 在获取成功后通过 `time(nullptr)` 赋值到 `WeatherData`，以保持 provider 只负责 API 数据、不耦合本地时钟的边界。
 
 ### 2. 天气视图与缓存结构 (`views/weather_view.h` / `weather_view.cpp`)
 - `WeatherData` 结构体：

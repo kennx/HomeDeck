@@ -334,8 +334,9 @@ void renderWeatherWithEnvironment() {
 
   WeatherResult result = fetchWeather(providerDeps, config.latitude, config.longitude, config.timezoneIana, config.wifiSsid, config.wifiPassword);
   
-  WEATHER_LOG("[Weather] fetchWeather result: ok=%d, temp=%d, code=%d, max=%d, min=%d\n",
-              result.ok, result.currentTemp, result.weatherCode, result.tempMax, result.tempMin);
+  WEATHER_LOG("[Weather] fetchWeather result: ok=%d, temp=%d, code=%d, max=%d, min=%d, rh=%d, app=%d\n",
+              result.ok, result.currentTemp, result.weatherCode, result.tempMax, result.tempMin,
+              result.relativeHumidity, result.apparentTemperature);
 
   WeatherData data = makeCurrentWeatherData();
   if (result.ok) {

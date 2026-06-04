@@ -55,7 +55,7 @@ void test_weather_view_render_success() {
     if (print.text == "体感" || print.text == "相对湿度" || print.text == "数据更新") {
       foundGridLabels = true;
     }
-    if (print.text.find("34") != std::string::npos || print.text.find("65%") != std::string::npos) {
+    if (print.text == "34°C" || print.text == "65%") {
       foundGridValues = true;
     }
   }
@@ -81,6 +81,10 @@ void test_weather_view_render_invalid() {
   bool foundDegradedTemp = false;
   bool foundDegradedMax = false;
   bool foundDegradedMin = false;
+  bool foundGridLabels = false;
+  bool foundDegradedAppTemp = false;
+  bool foundDegradedHumidity = false;
+  bool foundDegradedUpdate = false;
 
   for (const auto& print : M5.Display.prints) {
     if (print.text == "--" && print.fontKind == FakeFontKind::kDeviceLargeDate) {
@@ -92,11 +96,26 @@ void test_weather_view_render_invalid() {
     if (print.text == "最低 --") {
       foundDegradedMin = true;
     }
+    if (print.text == "体感" || print.text == "相对湿度" || print.text == "数据更新") {
+      foundGridLabels = true;
+    }
+    if (print.text == "--" && print.fontKind != FakeFontKind::kDeviceLargeDate) {
+      // 在无效数据下，体感、湿度均显示为 "--"
+      foundDegradedAppTemp = true;
+      foundDegradedHumidity = true;
+    }
+    if (print.text == "--:--") {
+      foundDegradedUpdate = true;
+    }
   }
 
   TEST_ASSERT_TRUE(foundDegradedTemp);
   TEST_ASSERT_TRUE(foundDegradedMax);
   TEST_ASSERT_TRUE(foundDegradedMin);
+  TEST_ASSERT_TRUE(foundGridLabels);
+  TEST_ASSERT_TRUE(foundDegradedAppTemp);
+  TEST_ASSERT_TRUE(foundDegradedHumidity);
+  TEST_ASSERT_TRUE(foundDegradedUpdate);
 }
 
 void test_weather_cache_write_and_apply() {
@@ -170,6 +189,9 @@ void test_weather_view_render_sleep_with_cache() {
   source.weatherCode = 1;
   source.tempMax = 32;
   source.tempMin = 22;
+  source.relativeHumidity = 55;
+  source.apparentTemperature = 30;
+  source.lastUpdate = 1780536954;
   homedeck::writeWeatherCache(source);
 
   homedeck::WeatherView view;
@@ -178,6 +200,9 @@ void test_weather_view_render_sleep_with_cache() {
   bool foundTemp = false;
   bool foundHighMax = false;
   bool foundHighMin = false;
+  bool foundAppTemp = false;
+  bool foundHumidity = false;
+  bool foundUpdateTime = false;
 
   for (const auto& print : M5.Display.prints) {
     if (print.text == "28" && print.fontKind == FakeFontKind::kDeviceLargeDate) {
@@ -189,11 +214,24 @@ void test_weather_view_render_sleep_with_cache() {
     if (print.text == "最低 22°") {
       foundHighMin = true;
     }
+    if (print.text == "30°C") {
+      foundAppTemp = true;
+    }
+    if (print.text == "55%") {
+      foundHumidity = true;
+    }
+    if (print.text.find(":") != std::string::npos && print.text != "12:00") {
+      // 匹配格式化后的时间字符串（如 "09:35"），排除底部状态栏的固定时间
+      foundUpdateTime = true;
+    }
   }
 
   TEST_ASSERT_TRUE(foundTemp);
   TEST_ASSERT_TRUE(foundHighMax);
   TEST_ASSERT_TRUE(foundHighMin);
+  TEST_ASSERT_TRUE(foundAppTemp);
+  TEST_ASSERT_TRUE(foundHumidity);
+  TEST_ASSERT_TRUE(foundUpdateTime);
 }
 
 void test_weather_view_render_sleep_without_cache() {
