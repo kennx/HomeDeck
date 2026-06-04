@@ -16,8 +16,8 @@ struct Fixture {
   bool homeRendered = false;
   bool calendarRendered = false;
   int calendarButtonClickCount = 0;
-  bool prevMonthClicked = false;
-  bool nextMonthClicked = false;
+  bool prevWeekClicked = false;
+  bool nextWeekClicked = false;
   bool forceFlagWritten = false;
   bool forceFlagCleared = false;
   bool forceFlagWriteSucceeds = true;
@@ -70,8 +70,8 @@ struct Fixture {
       almanacOffsets.push_back(offset);
     };
     deps.getCalendarButtonClickCount = [this]() { return calendarButtonClickCount; };
-    deps.wasPrevMonthClicked = [this]() { return prevMonthClicked; };
-    deps.wasNextMonthClicked = [this]() { return nextMonthClicked; };
+    deps.wasPrevWeekClicked = [this]() { return prevWeekClicked; };
+    deps.wasNextWeekClicked = [this]() { return nextWeekClicked; };
     deps.updateButtons = [this]() { ++updateCalls; };
     deps.areSetupButtonsPressed = [this]() { return buttonsPressed; };
     deps.millis = [this]() { return now; };
@@ -370,9 +370,9 @@ void test_double_click_resets_to_today_in_calendar() {
   f.calendarButtonClickCount = 0;
 
   // 翻页到上月
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   // 双击回本月
   f.calendarOffsets.clear();
@@ -405,13 +405,13 @@ void test_offsets_reset_before_deep_sleep() {
   f.calendarButtonClickCount = 1;
   controller.update();
   f.calendarButtonClickCount = 0;
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   f.calendarOffsets.clear();
   f.almanacOffsets.clear();
@@ -470,7 +470,7 @@ void test_prev_month_click_in_calendar() {
   controller.update();
   f.calendarButtonClickCount = 0;
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
@@ -487,7 +487,7 @@ void test_next_month_click_in_calendar() {
   controller.update();
   f.calendarButtonClickCount = 0;
 
-  f.nextMonthClicked = true;
+  f.nextWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
@@ -500,7 +500,7 @@ void test_month_click_ignored_in_almanac() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.calendarOffsets.size()));
@@ -514,7 +514,7 @@ void test_prev_day_click_in_almanac() {
 
   TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, controller.currentView());
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.almanacOffsets.size()));
@@ -527,7 +527,7 @@ void test_next_day_click_in_almanac() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.nextMonthClicked = true;
+  f.nextWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.almanacOffsets.size()));
@@ -544,7 +544,7 @@ void test_day_click_ignored_in_calendar() {
   controller.update();
   f.calendarButtonClickCount = 0;
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.almanacOffsets.size()));
@@ -556,9 +556,9 @@ void test_double_click_resets_to_today_in_almanac() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   f.almanacOffsets.clear();
   f.calendarButtonClickCount = 2;
@@ -574,11 +574,11 @@ void test_continuous_prev_day_clicks() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(3, static_cast<int>(f.almanacOffsets.size()));
@@ -594,7 +594,7 @@ void test_almanac_day_bounds() {
   controller.begin();
 
   for (int i = 0; i < 3651; ++i) {
-    f.prevMonthClicked = true;
+    f.prevWeekClicked = true;
     controller.update();
   }
 
@@ -602,7 +602,7 @@ void test_almanac_day_bounds() {
   TEST_ASSERT_EQUAL(-3650, f.almanacOffsets.back());
 
   f.almanacOffsets.clear();
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
   TEST_ASSERT_EQUAL(0, static_cast<int>(f.almanacOffsets.size()));
 }
@@ -617,9 +617,9 @@ void test_continuous_prev_month_clicks() {
   controller.update();
   f.calendarButtonClickCount = 0;
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(2, static_cast<int>(f.calendarOffsets.size()));
@@ -638,9 +638,9 @@ void test_month_click_resets_sleep_timer() {
   f.calendarButtonClickCount = 0;
 
   f.now = 240000;
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   f.now = 480000;
   controller.update();
@@ -661,9 +661,9 @@ void test_enter_system_mode_resets_month_offset() {
   f.calendarButtonClickCount = 1;
   controller.update();
   f.calendarButtonClickCount = 0;
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   // 重新进入 SystemMode（模拟唤醒）
   controller.begin();
@@ -671,7 +671,7 @@ void test_enter_system_mode_resets_month_offset() {
   f.calendarButtonClickCount = 1;
   controller.update();
   f.calendarButtonClickCount = 0;
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   // 如果偏移被重置，翻页后偏移应为 -1
@@ -686,9 +686,9 @@ void test_day_click_resets_sleep_timer() {
   controller.begin();
 
   f.now = 240000;
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   f.now = 480000;
   controller.update();
@@ -705,13 +705,13 @@ void test_enter_system_mode_resets_day_offset() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   controller.begin();
   f.almanacOffsets.clear();
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.almanacOffsets.size()));
@@ -776,9 +776,9 @@ void test_calendar_offset_resets_when_switching_away_and_back() {
   f.calendarButtonClickCount = 1;
   controller.update();
   f.calendarButtonClickCount = 0;
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   f.calendarOffsets.clear();
   f.calendarButtonClickCount = 1;
@@ -791,7 +791,7 @@ void test_calendar_offset_resets_when_switching_away_and_back() {
   controller.update(); // to Calendar
   f.calendarButtonClickCount = 0;
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.calendarOffsets.size()));
@@ -806,9 +806,9 @@ void test_almanac_offset_resets_when_switching_away_and_back() {
   homedeck::BootController controller{f.deps()};
   controller.begin();
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
-  f.prevMonthClicked = false;
+  f.prevWeekClicked = false;
 
   f.almanacOffsets.clear();
   f.calendarButtonClickCount = 1;
@@ -821,7 +821,7 @@ void test_almanac_offset_resets_when_switching_away_and_back() {
   controller.update(); // to Almanac
   f.calendarButtonClickCount = 0;
 
-  f.prevMonthClicked = true;
+  f.prevWeekClicked = true;
   controller.update();
 
   TEST_ASSERT_EQUAL(1, static_cast<int>(f.almanacOffsets.size()));

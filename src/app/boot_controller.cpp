@@ -13,8 +13,8 @@ constexpr std::time_t kTrustedUnixTimeThreshold = 1704067200;
 constexpr std::uint64_t kMicrosPerSecond = 1000000ULL;
 constexpr std::uint64_t kFallbackSleepSeconds = 3600ULL;
 constexpr int kButtonCWakeupGpio = 1;
-constexpr int kCalendarWeekOffsetMin = -520;
-constexpr int kCalendarWeekOffsetMax = 520;
+constexpr int kCalendarWeekOffsetMin = -5;
+constexpr int kCalendarWeekOffsetMax = 5;
 constexpr int kAlmanacDayOffsetMin = -3650;
 constexpr int kAlmanacDayOffsetMax = 3650;
 
@@ -146,12 +146,12 @@ void BootController::update() {
   // 2. 检测日历翻页（仅在 Calendar 视图）
   if (viewManager_ && viewManager_->currentView() == SystemView::Calendar) {
     bool calendarUpdated = false;
-    if (deps_.wasPrevMonthClicked && deps_.wasPrevMonthClicked()) {
+    if (deps_.wasPrevWeekClicked && deps_.wasPrevWeekClicked()) {
       if (calendarWeekOffset_ > kCalendarWeekOffsetMin) {
         calendarWeekOffset_--;
         calendarUpdated = true;
       }
-    } else if (deps_.wasNextMonthClicked && deps_.wasNextMonthClicked()) {
+    } else if (deps_.wasNextWeekClicked && deps_.wasNextWeekClicked()) {
       if (calendarWeekOffset_ < kCalendarWeekOffsetMax) {
         calendarWeekOffset_++;
         calendarUpdated = true;
@@ -166,12 +166,12 @@ void BootController::update() {
   // 3. 检测黄历翻页（仅在 Almanac 视图）
   if (viewManager_ && viewManager_->currentView() == SystemView::Almanac) {
     bool almanacUpdated = false;
-    if (deps_.wasPrevMonthClicked && deps_.wasPrevMonthClicked()) {
+    if (deps_.wasPrevWeekClicked && deps_.wasPrevWeekClicked()) {
       if (almanacDayOffset_ > kAlmanacDayOffsetMin) {
         almanacDayOffset_--;
         almanacUpdated = true;
       }
-    } else if (deps_.wasNextMonthClicked && deps_.wasNextMonthClicked()) {
+    } else if (deps_.wasNextWeekClicked && deps_.wasNextWeekClicked()) {
       if (almanacDayOffset_ < kAlmanacDayOffsetMax) {
         almanacDayOffset_++;
         almanacUpdated = true;

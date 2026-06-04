@@ -39,8 +39,8 @@ struct BootControllerDeps {
   std::function<void(int weekOffset)> renderCalendarWithOffset;
   std::function<void(int dayOffset)> renderAlmanacWithOffset;
   std::function<int()> getCalendarButtonClickCount;
-  std::function<bool()> wasPrevMonthClicked;
-  std::function<bool()> wasNextMonthClicked;
+  std::function<bool()> wasPrevWeekClicked;
+  std::function<bool()> wasNextWeekClicked;
   std::function<void()> updateButtons;
   std::function<bool()> areSetupButtonsPressed;
   std::function<unsigned long()> millis;

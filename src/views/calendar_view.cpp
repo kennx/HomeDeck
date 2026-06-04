@@ -18,30 +18,7 @@ namespace homedeck {
 namespace {
 
 constexpr int kCalWidth = 376;
-constexpr int kCalHeaderHeight = 27;
-constexpr int kCalWeekdayTopY = 51;
-constexpr int kCalWeekdayHeight = 47;
-constexpr int kCalDateStartY = 98;
-constexpr int kCalDateRowHeight = 47;
-constexpr int kCalDateRowGap = 0;
 constexpr int kCalColCount = 7;
-constexpr int kCalDateRows = 6;
-
-const char* calendarWeekdayLabel(int index) {
-  static constexpr const char* kLabels[] = {"日", "一", "二", "三", "四", "五", "六"};
-  if (index < 0 || index >= 7) return "";
-  return kLabels[index];
-}
-
-int daysInMonth(int year, int month) {
-  static constexpr int kDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  if (month < 1 || month > 12) return 31;
-  if (month == 2) {
-    const bool isLeap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
-    return isLeap ? 29 : 28;
-  }
-  return kDays[month - 1];
-}
 
 int cellLeftX(int col) {
   return kViewInsetX + col * kCalWidth / kCalColCount;
@@ -53,17 +30,6 @@ int cellRightX(int col) {
 
 int cellCenterX(int col) {
   return (cellLeftX(col) + cellRightX(col)) / 2;
-}
-
-void normalizeYearMonth(int& year, int& month) {
-  while (month > 12) {
-    month -= 12;
-    year++;
-  }
-  while (month < 1) {
-    month += 12;
-    year--;
-  }
 }
 
 std::string truncateUtf8(const std::string& str, size_t maxCharCount) {
@@ -311,108 +277,12 @@ void CalendarView::render(const CalendarData& data) {
   pushScreen(canvas);
 }
 
-CalendarData makeCalendarData(const std::tm& localTime) {
+void CalendarView::render() {
+  std::time_t now = std::time(nullptr);
+  std::tm buf{};
+  std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
+
   CalendarData data{};
-  data.year = localTime.tm_year + 1900;
-  data.month = localTime.tm_mon + 1;
-  data.day = localTime.tm_mday;
-  data.todayWeekday = localTime.tm_wday;
-  data.todayMonth = data.month;
-  data.todayDay = data.day;
-
-  if (gAlmanacCache.year == data.year && gAlmanacCache.month == data.month &&
-      gAlmanacCache.day == data.day && gAlmanacCache.calendar.valid) {
-    data.lunarDate = gAlmanacCache.calendar.lunarDate;
-    data.solarTerm = gAlmanacCache.calendar.solarTerm;
-    data.festival = gAlmanacCache.calendar.festival;
-    data.nextSpecialMonth = gAlmanacCache.calendar.nextSpecialMonth;
-    data.nextSpecialDay = gAlmanacCache.calendar.nextSpecialDay;
-    data.nextSpecialTerm = gAlmanacCache.calendar.nextSpecialTerm;
-    data.nextSpecialFestival = gAlmanacCache.calendar.nextSpecialFestival;
-    data.secondSpecialMonth = gAlmanacCache.calendar.secondSpecialMonth;
-    data.secondSpecialDay = gAlmanacCache.calendar.secondSpecialDay;
-    data.secondSpecialTerm = gAlmanacCache.calendar.secondSpecialTerm;
-    data.secondSpecialFestival = gAlmanacCache.calendar.secondSpecialFestival;
-    return data;
-  }
-
-  AlmanacProvider provider;
-  std::vector<AlmanacLookupDate> dates;
-  dates.reserve(36);
-  dates.push_back({data.year, data.month, data.day});
-  std::tm searchTm = localTime;
-  for (int offset = 1; offset <= 35; ++offset) {
-    searchTm.tm_mday += 1;
-    searchTm.tm_hour = 12;
-    std::mktime(&searchTm);
-    dates.push_back({searchTm.tm_year + 1900, searchTm.tm_mon + 1, searchTm.tm_mday});
-  }
-
-  bool foundFirst = false;
-  bool foundToday = false;
-  const bool foundAny = provider.lookupEach(dates.data(), dates.size(), [&](const AlmanacLookupDate& date, const AlmanacDayData& almanac) {
-    if (date.year == data.year && date.month == data.month && date.day == data.day) {
-      foundToday = true;
-      data.lunarDate = almanac.lunarDate;
-      data.solarTerm = almanac.solarTerm;
-      data.festival = lookupLunarFestival(almanac.lunarDate);
-      writeHomeAlmanacCache(data.year, data.month, data.day, almanac);
-      return false;
-    }
-
-    const std::string nextFestival = lookupLunarFestival(almanac.lunarDate);
-    if (!almanac.solarTerm.empty() || !nextFestival.empty()) {
-      if (!foundFirst) {
-        data.nextSpecialMonth = date.month;
-        data.nextSpecialDay = date.day;
-        data.nextSpecialTerm = almanac.solarTerm;
-        data.nextSpecialFestival = nextFestival;
-        foundFirst = true;
-      } else {
-        data.secondSpecialMonth = date.month;
-        data.secondSpecialDay = date.day;
-        data.secondSpecialTerm = almanac.solarTerm;
-        data.secondSpecialFestival = nextFestival;
-        return true;
-      }
-    }
-    return false;
-  });
-
-  if (!foundAny || !foundToday) {
-    return data;
-  }
-
-  prepareAlmanacCacheDate(data.year, data.month, data.day);
-  gAlmanacCache.calendar.valid = true;
-  setAlmanacCacheString(gAlmanacCache.calendar.lunarDate, sizeof(gAlmanacCache.calendar.lunarDate), data.lunarDate);
-  gAlmanacCache.calendar.solarTerm[0] = '\0';
-  if (!data.solarTerm.empty()) {
-    setAlmanacCacheString(gAlmanacCache.calendar.solarTerm, sizeof(gAlmanacCache.calendar.solarTerm), data.solarTerm);
-  }
-  setAlmanacCacheString(gAlmanacCache.calendar.festival, sizeof(gAlmanacCache.calendar.festival), data.festival);
-  gAlmanacCache.calendar.nextSpecialMonth = data.nextSpecialMonth;
-  gAlmanacCache.calendar.nextSpecialDay = data.nextSpecialDay;
-  setAlmanacCacheString(gAlmanacCache.calendar.nextSpecialTerm, sizeof(gAlmanacCache.calendar.nextSpecialTerm), data.nextSpecialTerm);
-  setAlmanacCacheString(
-      gAlmanacCache.calendar.nextSpecialFestival,
-      sizeof(gAlmanacCache.calendar.nextSpecialFestival),
-      data.nextSpecialFestival);
-  gAlmanacCache.calendar.secondSpecialMonth = data.secondSpecialMonth;
-  gAlmanacCache.calendar.secondSpecialDay = data.secondSpecialDay;
-  setAlmanacCacheString(
-      gAlmanacCache.calendar.secondSpecialTerm,
-      sizeof(gAlmanacCache.calendar.secondSpecialTerm),
-      data.secondSpecialTerm);
-  setAlmanacCacheString(
-      gAlmanacCache.calendar.secondSpecialFestival,
-      sizeof(gAlmanacCache.calendar.secondSpecialFestival),
-      data.secondSpecialFestival);
-
-  return data;
-}
-
-void applySht40ToCalendar(CalendarData& data) {
   const EnvironmentReading reading = readSht40Environment();
   if (reading.ok) {
     data.temperatureAvailable = true;
@@ -420,44 +290,19 @@ void applySht40ToCalendar(CalendarData& data) {
     data.humidityAvailable = true;
     data.humidityPercent = reading.humidityPercent;
   }
-}
+  data.bottomCenterMessage = formatCurrentTimeHHMM();
 
-CalendarData makeCurrentCalendarData() {
-  const std::time_t now = std::time(nullptr);
-  std::tm buf{};
-  const std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   if (local == nullptr) {
-    std::tm fallback = fallbackLocalTime();
-    return makeCalendarData(fallback);
-  }
-  CalendarData data = makeCalendarData(*local);
-  applySht40ToCalendar(data);
-  return data;
-}
-
-void CalendarView::render() {
-  std::time_t now = std::time(nullptr);
-  std::tm buf{};
-  std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
-  if (local == nullptr) {
-    std::tm fallback = fallbackLocalTime();
-    CalendarData data{};
-    applySht40ToCalendar(data);
-    data.bottomCenterMessage = formatCurrentTimeHHMM();
-
     render(data);
     return;
   }
-
-  CalendarData data{};
-  applySht40ToCalendar(data);
-  data.bottomCenterMessage = formatCurrentTimeHHMM();
 
   render(data);
 }
 
 void CalendarView::renderWithOffset(int weekOffset) {
   weekOffset_ = weekOffset;
+  hasCachedDaysInfo_ = false;
   render();
 }
 
@@ -468,20 +313,6 @@ void CalendarView::renderSleep() {
   data.bottomCenterMessage = "--:--";
 
   render(data);
-}
-
-void CalendarView::onButtonA() {
-  if (weekOffset_ > -520) {
-    weekOffset_--;
-    renderWithOffset(weekOffset_);
-  }
-}
-
-void CalendarView::onButtonB() {
-  if (weekOffset_ < 520) {
-    weekOffset_++;
-    renderWithOffset(weekOffset_);
-  }
 }
 
 void CalendarView::reset() {

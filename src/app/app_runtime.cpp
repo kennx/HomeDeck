@@ -32,6 +32,8 @@
 #include "views/countdown_view.h"
 #include "config/config_portal_renderer.h"
 #include "views/weather_view.h"
+#include "views/view_common.h"
+#include "generated/device_font_vlw.h"
 #include "providers/weather_provider.h"
 #include "system/render_context.h"
 #ifndef UNIT_TEST
@@ -442,9 +444,9 @@ void syncAllNetworkResources() {
     return;
   }
 
-  // 1. 同步时间 (NTP)
+  // 1. 同步时间 (NTP) — 强制刷新时无条件执行，不依赖 autoRtcCorrection 设置
   time_t syncedUnix = 0;
-  if (config.autoRtcCorrection && !config.ntpServer.empty()) {
+  if (!config.ntpServer.empty()) {
     if (syncNtp(config.timezoneIana, config.ntpServer, &syncedUnix)) {
       writeRtcUtc(syncedUnix);
       if (gTimeService) {
@@ -466,7 +468,7 @@ void syncAllNetworkResources() {
     providerDeps.httpGet = [](const std::string& url) -> std::pair<int, std::string> {
 #ifndef UNIT_TEST
       WiFiClientSecure client;
-      client.setInsecure();
+      client.setInsecure();  // 用户自托管设备，接受自签名/用户自定义 Webcal 地址的安全权衡
       HTTPClient http;
       http.begin(client, url.c_str());
       http.setConnectTimeout(5000);
@@ -556,8 +558,8 @@ BootControllerDeps makeBootDeps() {
     }
     return 0;
   };
-  deps.wasPrevMonthClicked = []() { return M5.BtnB.wasClicked(); };
-  deps.wasNextMonthClicked = []() { return M5.BtnA.wasClicked(); };
+  deps.wasPrevWeekClicked = []() { return M5.BtnB.wasClicked(); };
+  deps.wasNextWeekClicked = []() { return M5.BtnA.wasClicked(); };
   deps.updateButtons = []() { M5.update(); };
   deps.areSetupButtonsPressed = []() { return M5.BtnA.isPressed() && M5.BtnB.isPressed(); };
   deps.millis = []() { return millis(); };
@@ -584,7 +586,20 @@ BootControllerDeps makeBootDeps() {
   deps.isWakeUpFromDeepSleep = []() { return false; };
 #endif
   deps.isBtnCPressed = []() { return M5.BtnC.isPressed(); };
-  deps.syncNetworkResources = syncAllNetworkResources;
+  deps.syncNetworkResources = []() {
+    // 绘制临时刷新提示，给用户强制刷新的视觉反馈
+    M5Canvas& canvas = sprite();
+    prepareScreen(canvas);
+    if (canvas.loadFont(generated::kDeviceFontVlw)) {
+      canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+      canvas.setTextDatum(textdatum_t::middle_center);
+      canvas.drawString("正在刷新数据...", kViewCenterX, kViewCenterY);
+      canvas.unloadFont();
+    }
+    pushScreen(canvas);
+
+    syncAllNetworkResources();
+  };
 
   return deps;
 }

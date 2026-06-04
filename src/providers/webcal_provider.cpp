@@ -169,11 +169,21 @@ bool parseIcsStream(Stream& stream, const std::tm& localNow, std::map<std::strin
     }
   };
 
-  while (stream.available()) {
+  while (true) {
     std::string rawLine = readLine(stream);
     trimRightInPlace(rawLine);
     if (rawLine.empty()) {
+#if defined(ARDUINO)
+      // On Arduino, a temporary empty read may occur between TCP packets.
+      // Retry briefly before concluding the stream is finished.
+      if (!stream.available()) {
+        delay(50);
+        if (!stream.available()) break;
+      }
       continue;
+#else
+      break;
+#endif
     }
 
     if (rawLine[0] == ' ' || rawLine[0] == '\t') {
@@ -243,6 +253,7 @@ bool syncWebcalFestivals(const std::string& webcalUrl, const std::string& wifiSs
   }
   File file = LittleFS.open("/webcal_cache.json", "w");
   if (!file) {
+    LittleFS.end();
     return false;
   }
 
@@ -255,6 +266,7 @@ bool syncWebcalFestivals(const std::string& webcalUrl, const std::string& wifiSs
   serializeJson(doc, jsonStr);
   size_t bytesWritten = file.write(reinterpret_cast<const uint8_t*>(jsonStr.c_str()), jsonStr.size());
   file.close();
+  LittleFS.end();
 
   return bytesWritten > 0;
 #else
@@ -270,10 +282,12 @@ bool loadCachedFestivals(std::map<std::string, std::string>& outFestivals) {
     return false;
   }
   if (!LittleFS.exists("/webcal_cache.json")) {
-    return false;
+    LittleFS.end();
+    return true;  // Allow missing cache
   }
   File file = LittleFS.open("/webcal_cache.json", "r");
   if (!file) {
+    LittleFS.end();
     return false;
   }
   size_t size = file.size();
@@ -282,12 +296,14 @@ bool loadCachedFestivals(std::map<std::string, std::string>& outFestivals) {
   file.close();
 
   if (bytesRead == 0) {
+    LittleFS.end();
     return false;
   }
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, buf.data());
   if (error) {
+    LittleFS.end();
     return false;
   }
 
@@ -295,6 +311,7 @@ bool loadCachedFestivals(std::map<std::string, std::string>& outFestivals) {
   for (JsonPair p : root) {
     outFestivals[p.key().c_str()] = p.value().as<std::string>();
   }
+  LittleFS.end();
   return true;
 }
 

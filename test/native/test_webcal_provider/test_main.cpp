@@ -158,7 +158,8 @@ void test_load_cached_festivals_not_exist() {
   fakeLittleFSReset();
   std::map<std::string, std::string> festivals;
   bool ok = homedeck::loadCachedFestivals(festivals);
-  TEST_ASSERT_FALSE(ok);
+  TEST_ASSERT_TRUE(ok);
+  TEST_ASSERT_EQUAL_UINT(0, festivals.size());
 }
 
 void test_sync_webcal_festivals_native_returns_false() {

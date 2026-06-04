@@ -9,6 +9,7 @@ namespace homedeck {
 // ── 共享布局常量 ──────────────────────────────────────────────
 constexpr int kViewInsetX = 12;
 constexpr int kViewCenterX = 200;
+constexpr int kViewCenterY = 270;
 constexpr int kViewRightX = 388;
 constexpr int kViewHeaderTopY = 12;
 constexpr int kViewBottomInset = 12;
