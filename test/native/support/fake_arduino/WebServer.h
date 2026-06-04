@@ -36,6 +36,10 @@ class WebServer {
     return found == args_.end() ? std::string{} : found->second;
   }
 
+  bool hasArg(const char* name) const {
+    return args_.find(name) != args_.end();
+  }
+
   void sendHeader(const char* name, const char* value, bool = false) {
     headers_[name != nullptr ? name : ""] = value != nullptr ? value : "";
   }

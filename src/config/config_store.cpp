@@ -15,6 +15,7 @@ constexpr const char* kConfigured = "configured";
 constexpr const char* kForceConfig = "force_cfg";
 constexpr const char* kLatitude = "lat";
 constexpr const char* kLongitude = "lon";
+constexpr const char* kWebcalUrl = "webcal_url";
 
 }  // namespace
 
@@ -32,6 +33,7 @@ SetupConfig ConfigStore::loadSetupConfig() const {
   config.ntpServer = prefs_.getString(kNtpServer, "pool.ntp.org").c_str();
   config.latitude = prefs_.getString(kLatitude, kDefaultLatitude).c_str();
   config.longitude = prefs_.getString(kLongitude, kDefaultLongitude).c_str();
+  config.webcalUrl = prefs_.getString(kWebcalUrl, "").c_str();
 
   if (trim(config.latitude).empty()) {
     config.latitude = kDefaultLatitude;
@@ -55,7 +57,8 @@ bool ConfigStore::saveSetupConfig(const SetupConfig& config) {
   const bool boolOk = prefs_.putBool(kAutoRtc, config.autoRtcCorrection);
   const bool latOk = prefs_.putString(kLatitude, config.latitude.c_str()) > 0 || config.latitude.empty();
   const bool lonOk = prefs_.putString(kLongitude, config.longitude.c_str()) > 0 || config.longitude.empty();
-  return stringsOk && passwordOk && timezoneOk && ntpOk && boolOk && latOk && lonOk;
+  const bool webcalOk = prefs_.putString(kWebcalUrl, config.webcalUrl.c_str()) > 0 || config.webcalUrl.empty();
+  return stringsOk && passwordOk && timezoneOk && ntpOk && boolOk && latOk && lonOk && webcalOk;
 }
 
 BootFlags ConfigStore::loadBootFlags() const {

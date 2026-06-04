@@ -16,6 +16,7 @@ struct SetupConfig {
   std::string ntpServer = "pool.ntp.org";
   std::string latitude;
   std::string longitude;
+  std::string webcalUrl;
 };
 
 struct ManualDateTime {

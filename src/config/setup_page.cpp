@@ -119,6 +119,8 @@ std::string buildSetupPageHtml(
       out << htmlEscape(values.latitude);
     } else if (placeholder == "{{LONGITUDE}}") {
       out << htmlEscape(values.longitude);
+    } else if (placeholder == "{{WEBCAL_URL}}") {
+      out << htmlEscape(values.webcalUrl);
     } else if (placeholder == "{{AUTO_RTC_CHECKED}}") {
       out << (values.autoRtcCorrection ? "checked" : "");
     } else if (placeholder == "{{AUTO_RTC_DISABLED}}") {
