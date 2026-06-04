@@ -10,6 +10,11 @@ inline constexpr std::size_t kDeviceFontVlwSize = 2818266U;
 inline constexpr std::uint32_t kDeviceFontGlyphCount = 7541U;
 inline constexpr std::uint32_t kDeviceFontPixelSize = 20U;
 
+extern const std::uint8_t kDeviceLunarFontVlw[];
+inline constexpr std::size_t kDeviceLunarFontVlwSize = 1215523U;
+inline constexpr std::uint32_t kDeviceLunarFontGlyphCount = 7541U;
+inline constexpr std::uint32_t kDeviceLunarFontPixelSize = 12U;
+
 extern const std::uint8_t kDeviceLargeDateFontVlw[];
 inline constexpr std::size_t kDeviceLargeDateFontVlwSize = 184097U;
 inline constexpr std::uint32_t kDeviceLargeDateFontGlyphCount = 19U;
