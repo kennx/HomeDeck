@@ -250,7 +250,9 @@ bool syncWebcalFestivals(const std::string& webcalUrl, const std::string& wifiSs
     doc[pair.first] = pair.second;
   }
 
-  size_t bytesWritten = serializeJson(doc, file);
+  std::string jsonStr;
+  serializeJson(doc, jsonStr);
+  size_t bytesWritten = file.write(reinterpret_cast<const uint8_t*>(jsonStr.c_str()), jsonStr.size());
   file.close();
   LittleFS.end();
 
