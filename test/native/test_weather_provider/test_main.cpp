@@ -28,11 +28,15 @@ void test_fetch_weather_success() {
   deps.httpGet = [&](const std::string& url) -> std::pair<int, std::string> {
     if (url.find("latitude=25.78") != std::string::npos &&
         url.find("longitude=113.02") != std::string::npos &&
-        url.find("timezone=Asia%2FShanghai") != std::string::npos) {
+        url.find("timezone=Asia%2FShanghai") != std::string::npos &&
+        url.find("relative_humidity_2m") != std::string::npos &&
+        url.find("apparent_temperature") != std::string::npos) {
       std::string mockJson = R"({
         "current": {
           "temperature_2m": 33.6,
-          "weather_code": 3
+          "weather_code": 3,
+          "relative_humidity_2m": 65,
+          "apparent_temperature": 34.2
         },
         "daily": {
           "weather_code": [3],
@@ -54,6 +58,8 @@ void test_fetch_weather_success() {
   TEST_ASSERT_EQUAL(3, result.weatherCode);
   TEST_ASSERT_EQUAL(35, result.tempMax);
   TEST_ASSERT_EQUAL(26, result.tempMin);
+  TEST_ASSERT_EQUAL(65, result.relativeHumidity);
+  TEST_ASSERT_EQUAL(34, result.apparentTemperature);
 }
 
 void test_fetch_weather_wifi_fail() {
@@ -132,7 +138,7 @@ void test_fetch_weather_empty_daily_arrays() {
   deps.connectWifi = [](const std::string&, const std::string&) { return true; };
   deps.disconnectWifi = []() {};
   deps.httpGet = [](const std::string&) -> std::pair<int, std::string> {
-    std::string mockJson = R"({"current":{"temperature_2m":22,"weather_code":1},"daily":{"weather_code":[],"temperature_2m_max":[],"temperature_2m_min":[]}})";
+    std::string mockJson = R"({"current":{"temperature_2m":22,"weather_code":1,"relative_humidity_2m":50,"apparent_temperature":21},"daily":{"weather_code":[],"temperature_2m_max":[],"temperature_2m_min":[]}})";
     return {200, mockJson};
   };
   
@@ -146,7 +152,7 @@ void test_fetch_weather_negative_temp() {
   deps.disconnectWifi = []() {};
   deps.httpGet = [](const std::string&) -> std::pair<int, std::string> {
     std::string mockJson = R"({
-      "current":{"temperature_2m":-5.7,"weather_code":71},
+      "current":{"temperature_2m":-5.7,"weather_code":71,"relative_humidity_2m":80,"apparent_temperature":-8.2},
       "daily":{"weather_code":[71],"temperature_2m_max":[-2.1],"temperature_2m_min":[-10.3]}
     })";
     return {200, mockJson};
@@ -158,6 +164,8 @@ void test_fetch_weather_negative_temp() {
   TEST_ASSERT_EQUAL(71, result.weatherCode);
   TEST_ASSERT_EQUAL(-2, result.tempMax);
   TEST_ASSERT_EQUAL(-10, result.tempMin);
+  TEST_ASSERT_EQUAL(80, result.relativeHumidity);
+  TEST_ASSERT_EQUAL(-8, result.apparentTemperature);
 }
 
 void test_url_encode_special_chars() {

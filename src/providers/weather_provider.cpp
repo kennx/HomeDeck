@@ -43,7 +43,7 @@ WeatherResult fetchWeather(
   std::string encodedTz = urlEncode(timezoneIana);
   std::string url = "https://api.open-meteo.com/v1/forecast?latitude=" + latitude +
                     "&longitude=" + longitude +
-                    "&current=temperature_2m,weather_code" +
+                    "&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature" +
                     "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
                     "&forecast_days=1" +
                     "&timezone=" + encodedTz;
@@ -68,12 +68,15 @@ WeatherResult fetchWeather(
     return result;
   }
 
-  if (current["temperature_2m"].isNull() || current["weather_code"].isNull()) {
+  if (current["temperature_2m"].isNull() || current["weather_code"].isNull() ||
+      current["relative_humidity_2m"].isNull() || current["apparent_temperature"].isNull()) {
     return result;
   }
   
   result.currentTemp = static_cast<int>(current["temperature_2m"].as<float>());
   result.weatherCode = current["weather_code"].as<int>();
+  result.relativeHumidity = static_cast<int>(current["relative_humidity_2m"].as<float>());
+  result.apparentTemperature = static_cast<int>(current["apparent_temperature"].as<float>());
   
   JsonArray maxTemps = daily["temperature_2m_max"];
   JsonArray minTemps = daily["temperature_2m_min"];

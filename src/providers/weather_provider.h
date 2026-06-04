@@ -12,6 +12,8 @@ struct WeatherResult {
   int weatherCode = 0;
   int tempMax = 0;
   int tempMin = 0;
+  int relativeHumidity = 0;      // 相对湿度 (%)
+  int apparentTemperature = 0;   // 体感温度 (°C)
 };
 
 struct WeatherProviderDeps {
