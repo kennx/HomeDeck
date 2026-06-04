@@ -533,6 +533,10 @@ struct FakeDisplay {
     rects.push_back({x, y, w, 1, color});
   }
 
+  void drawFastVLine(int32_t x, int32_t y, int32_t h, std::uint32_t color) {
+    rects.push_back({x, y, 1, h, color});
+  }
+
   void startWrite() {
   }
 
@@ -752,6 +756,10 @@ struct FakeCanvas {
 
   void drawFastHLine(int32_t x, int32_t y, int32_t w, std::uint32_t color) {
     rects.push_back({x, y, w, 1, color});
+  }
+
+  void drawFastVLine(int32_t x, int32_t y, int32_t h, std::uint32_t color) {
+    rects.push_back({x, y, 1, h, color});
   }
 
   void setTextDatum(textdatum_t value) {
