@@ -143,6 +143,7 @@ void CalendarView::render(const CalendarData& data) {
           daysInfo_[i].solarTerm = almanac.solarTerm;
 
           // 拆分农历日期为月份和日期（如 "三月十五" → "三月" + "十五"）
+          // "月" 在 UTF-8 中为 3 字节（E6 9C 88），日期文本紧跟其后
           const auto monthPos = almanac.lunarDate.find("月");
           if (monthPos != std::string::npos && monthPos + 3 < almanac.lunarDate.size()) {
             daysInfo_[i].lunarMonth = almanac.lunarDate.substr(0, monthPos + 3);
@@ -227,15 +228,12 @@ void CalendarView::render(const CalendarData& data) {
     for (int col = 0; col < 7; ++col) {
       const int cx = cellCenterX(col);
 
-      std::string displayText;
       if (!daysInfo_[col].lunarFestival.empty()) {
-        displayText = truncateUtf8(daysInfo_[col].lunarFestival, 4);
         canvas.setTextDatum(textdatum_t::middle_center);
-        canvas.drawString(displayText.c_str(), cx, kLunarDateY);
+        canvas.drawString(truncateUtf8(daysInfo_[col].lunarFestival, 4).c_str(), cx, kLunarDateY);
       } else if (!daysInfo_[col].solarTerm.empty()) {
-        displayText = truncateUtf8(daysInfo_[col].solarTerm, 4);
         canvas.setTextDatum(textdatum_t::middle_center);
-        canvas.drawString(displayText.c_str(), cx, kLunarDateY);
+        canvas.drawString(truncateUtf8(daysInfo_[col].solarTerm, 4).c_str(), cx, kLunarDateY);
       } else {
         // 农历日期：月份变化时显示两行（上月份下日期），否则只显示日期
         bool showMonth = false;
