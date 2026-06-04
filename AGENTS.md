@@ -22,12 +22,18 @@
 - `src/app/view_manager.cpp/h`：视图路由与切换管理。
 - `src/views/`：视图组件。`almanac_view` 为主 UI；`calendar_view`、`countdown_view`、`weather_view` 为其他视图；`view_common` 为共享渲染工具（状态栏、时间格式化等）。
 - `src/config/`：配置子系统（`config_types`、`config_store`、`config_validator`、`config_portal`、`setup_page`、`config_portal_renderer`）。持久化状态保存在 NVS/LittleFS 中；`config_portal_renderer` 负责配置门户的墨水屏页面渲染（二维码、AP 信息、Logo）。
-- `src/system/`：系统服务（`time_service`、`wifi_connection`、`sht40_reader`、`render_context`）。
-- `src/providers/`：数据提供者（`almanac_provider`、`timezone_catalog`、`weather_provider`）。
+- `src/system/`：系统服务（`time_service`、`wifi_connection`、`sht40_reader`、`render_context`）。`render_context` 封装墨水屏 Canvas 操作（`prepareScreen`、`pushScreen`、精灵管理）。
+- `src/providers/`：数据提供者（`almanac_provider`、`timezone_catalog`、`weather_provider`、`webcal_provider`）。`webcal_provider` 负责解析 ICS 格式 WebCal 订阅，为倒数日提供节日/事件数据。
 - `src/generated/`：自动生成资源（设备字体、设置页 HTML）。请勿手动编辑。
-- `test/native/`：使用 Unity 框架的本机（宿主机）单元测试。
-- `tools/`：用于生成年鉴数据和设备字体的 Python 脚本。
-- `docs/PaperColor.md`：这台设备的文档查询、设备信息、GPIO…… 
+- `data/`：运行时数据文件（`almanac.bin` 年鉴数据、`logo.png` 设备 Logo）。构建时通过 PlatformIO 自动打包进 LittleFS。
+- `fonts/`：原始字体源文件（`misans/` 等），供 `tools/` 中的生成器转换为设备字体。
+- `test/native/`：使用 Unity 框架的本机（宿主机）单元测试。每个组件有独立测试目录（如 `test_almanac_provider`、`test_boot_controller` 等），按需添加测试用例到对应目录即可。
+- `tools/`：生成器脚本集合。`generate_almanac_data.py` 生成年鉴二进制数据；`generate_device_font.py` / `font_to_vlw.cpp` 生成设备字体；`generate_setup_page.py` 生成配置门户 HTML；`sync_preview.py` 用于预览同步。
+- `docs/PaperColor.md`：设备硬件文档（GPIO、分辨率、刷新时序等）。
+- `docs/eink_spectra6_colors.md`：六色墨水屏颜色参考与 UI 设计约束。
+- `docs/features/`：功能开发记录与待办清单。
+- `docs/issues/`：已知问题与排查记录。
+- `docs/superpowers/`：开发辅助文档与技巧。
 
 ## 环境要求
 
