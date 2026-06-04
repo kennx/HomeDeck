@@ -225,14 +225,13 @@ void CalendarView::render(const CalendarData& data) {
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
     constexpr int kLunarDateBottomY = 168;
     constexpr int kLunarRowHeight = 18;
+    canvas.setTextDatum(textdatum_t::bottom_center);
     for (int col = 0; col < 7; ++col) {
       const int cx = cellCenterX(col);
 
       if (!daysInfo_[col].lunarFestival.empty()) {
-        canvas.setTextDatum(textdatum_t::bottom_center);
         canvas.drawString(truncateUtf8(daysInfo_[col].lunarFestival, 4).c_str(), cx, kLunarDateBottomY);
       } else if (!daysInfo_[col].solarTerm.empty()) {
-        canvas.setTextDatum(textdatum_t::bottom_center);
         canvas.drawString(truncateUtf8(daysInfo_[col].solarTerm, 4).c_str(), cx, kLunarDateBottomY);
       } else {
         // 农历日期：月份变化时显示两行（上月份下日期），日期统一靠底对齐
@@ -244,7 +243,6 @@ void CalendarView::render(const CalendarData& data) {
           showMonth = true;
         }
 
-        canvas.setTextDatum(textdatum_t::bottom_center);
         if (showMonth && !daysInfo_[col].lunarMonth.empty()) {
           canvas.drawString(daysInfo_[col].lunarMonth.c_str(), cx, kLunarDateBottomY - kLunarRowHeight);
         }
