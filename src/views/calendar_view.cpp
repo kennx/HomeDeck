@@ -4,9 +4,11 @@
 #include <cstdio>
 #include <ctime>
 #include <string>
+#include <map>
 
 #include "views/almanac_view.h"
 #include "providers/almanac_provider.h"
+#include "providers/webcal_provider.h"
 #include "generated/device_font_vlw.h"
 #include "system/render_context.h"
 #include "system/sht40_reader.h"
@@ -69,122 +71,204 @@ void normalizeYearMonth(int& year, int& month) {
 void CalendarView::render(const CalendarData& data) {
   M5Canvas& canvas = sprite();
   prepareScreen(canvas);
+
+  // 1. 获取基准时间
+  std::time_t now = std::time(nullptr);
+  std::tm local{};
+  std::tm* pLocal = now > 0 ? localtime_r(&now, &local) : nullptr;
+  if (pLocal == nullptr) {
+    local = fallbackLocalTime();
+    pLocal = &local;
+  }
+
+  std::tm todayTm = *pLocal;
+  todayTm.tm_hour = 12;
+  todayTm.tm_min = 0;
+  todayTm.tm_sec = 0;
+  std::mktime(&todayTm);
+
+  // 计算本周一的日期
+  int daysToMonday = (todayTm.tm_wday == 0) ? 6 : (todayTm.tm_wday - 1);
+  std::tm mondayTm = todayTm;
+  mondayTm.tm_mday -= daysToMonday;
+  mondayTm.tm_mday += weekOffset_ * 7;
+  std::mktime(&mondayTm);
+
+  // 2. 初始化这 7 天
+  struct WeeklyDayInfo {
+    std::tm tmVal;
+    std::string lunarDate;
+    std::string lunarFestival;
+    std::string solarTerm;
+    std::string webcalFestival;
+    bool isToday = false;
+  };
+
+  WeeklyDayInfo daysInfo[7];
+  for (int i = 0; i < 7; ++i) {
+    std::tm t = mondayTm;
+    t.tm_mday += i;
+    std::mktime(&t);
+    daysInfo[i].tmVal = t;
+
+    if (weekOffset_ == 0 &&
+        t.tm_mday == pLocal->tm_mday &&
+        t.tm_mon == pLocal->tm_mon &&
+        t.tm_year == pLocal->tm_year) {
+      daysInfo[i].isToday = true;
+    }
+  }
+
+  // 3. 加载 Webcal 缓存节日
+  std::map<std::string, std::string> cachedFestivals;
+  loadCachedFestivals(cachedFestivals);
+  for (int i = 0; i < 7; ++i) {
+    char keyBuf[32];
+    std::snprintf(keyBuf, sizeof(keyBuf), "%04d-%02d-%02d",
+                  daysInfo[i].tmVal.tm_year + 1900,
+                  daysInfo[i].tmVal.tm_mon + 1,
+                  daysInfo[i].tmVal.tm_mday);
+    auto it = cachedFestivals.find(keyBuf);
+    if (it != cachedFestivals.end()) {
+      daysInfo[i].webcalFestival = it->second;
+    }
+  }
+
+  // 4. 查询 Almanac 农历及农历节日等
+  AlmanacProvider provider;
+  AlmanacLookupDate lookupDates[7];
+  for (int i = 0; i < 7; ++i) {
+    lookupDates[i].year = daysInfo[i].tmVal.tm_year + 1900;
+    lookupDates[i].month = daysInfo[i].tmVal.tm_mon + 1;
+    lookupDates[i].day = daysInfo[i].tmVal.tm_mday;
+  }
+  provider.lookupEach(lookupDates, 7, [&](const AlmanacLookupDate& date, const AlmanacDayData& almanac) {
+    for (int i = 0; i < 7; ++i) {
+      if (lookupDates[i].year == date.year &&
+          lookupDates[i].month == date.month &&
+          lookupDates[i].day == date.day) {
+        daysInfo[i].lunarDate = almanac.lunarDate;
+        daysInfo[i].lunarFestival = lookupLunarFestival(almanac.lunarDate);
+        daysInfo[i].solarTerm = almanac.solarTerm;
+        break;
+      }
+    }
+    return false;
+  });
+
+  // 5. 渲染 Header
   if (canvas.loadFont(generated::kDeviceFontVlw)) {
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
-    canvas.setTextDatum(textdatum_t::top_left);
-    canvas.drawString(formatYear(data.year).c_str(), kViewInsetX, kViewHeaderTopY);
 
+    // Left: Year of target week
+    canvas.setTextDatum(textdatum_t::top_left);
+    canvas.drawString(formatYear(daysInfo[0].tmVal.tm_year + 1900).c_str(), kViewInsetX, kViewHeaderTopY);
+
+    // Center: Chinese month name(s) of target week
+    std::string centerText;
+    if (daysInfo[0].tmVal.tm_mon == daysInfo[6].tmVal.tm_mon) {
+      centerText = chineseMonthName(daysInfo[0].tmVal.tm_mon);
+    } else {
+      centerText = std::string(chineseMonthName(daysInfo[0].tmVal.tm_mon)) + "/" + chineseMonthName(daysInfo[6].tmVal.tm_mon);
+    }
     canvas.setTextDatum(textdatum_t::top_center);
-    canvas.drawString(chineseMonthName(data.month - 1), kViewCenterX, kViewHeaderTopY);
+    canvas.drawString(centerText.c_str(), kViewCenterX, kViewHeaderTopY);
 
+    // Right: "周视图"
     canvas.setTextDatum(textdatum_t::top_right);
-    canvas.drawString(weekdayName(data.todayWeekday), kViewRightX, kViewHeaderTopY);
+    canvas.drawString("周视图", kViewRightX, kViewHeaderTopY);
 
-    canvas.setTextDatum(textdatum_t::middle_center);
-    for (int col = 0; col < kCalColCount; ++col) {
-      const int cx = cellCenterX(col);
-      const int cy = kCalWeekdayTopY + kCalWeekdayHeight / 2;
-      canvas.drawString(calendarWeekdayLabel(col), cx, cy);
-    }
     canvas.unloadFont();
   }
 
-  std::tm firstDayTm{};
-  firstDayTm.tm_year = data.year - 1900;
-  firstDayTm.tm_mon = data.month - 1;
-  firstDayTm.tm_mday = 1;
-  std::mktime(&firstDayTm);
-  const int firstWeekday = firstDayTm.tm_wday;
-  const int monthDays = daysInMonth(data.year, data.month);
-
-  if (canvas.loadFont(generated::kDeviceFontVlw)) {
-    for (int row = 0; row < kCalDateRows; ++row) {
-      for (int col = 0; col < kCalColCount; ++col) {
-        const int cellIndex = row * kCalColCount + col;
-        const int dayNumber = cellIndex - firstWeekday + 1;
-
-        if (dayNumber < 1 || dayNumber > monthDays) {
-          continue;
-        }
-
-        const int cx = cellCenterX(col);
-        const int cy = kCalDateStartY + row * (kCalDateRowHeight + kCalDateRowGap) + kCalDateRowHeight / 2;
-
-        if (dayNumber == data.day) {
-          canvas.fillSmoothCircle(cx, cy, 20, TFT_BLACK);
-          canvas.setTextColor(TFT_WHITE);
-        } else {
-          canvas.setTextColor(TFT_BLACK, TFT_WHITE);
-        }
-
-        canvas.setTextDatum(textdatum_t::middle_center);
-        canvas.drawString(std::to_string(dayNumber).c_str(), cx, cy);
-      }
-    }
-    canvas.unloadFont();
-  }
-
-  const int actualRows = (firstWeekday + monthDays + 6) / 7;
-  const int lastRowBottomY = kCalDateStartY + actualRows * kCalDateRowHeight;
-  const int sepY = lastRowBottomY + 12;
-  const int sepLeftX = 12;
-  const int sepRightX = canvas.width() - 12;
-  canvas.drawFastHLine(sepLeftX, sepY, sepRightX - sepLeftX, TFT_BLACK);
-
+  // 6. 渲染 Row 1 (星期名: 一, 二, 三, 四, 五, 六, 日)
   if (canvas.loadFont(generated::kDeviceFontVlw)) {
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
-
-    std::string leftText = std::to_string(data.todayMonth) + "月" + std::to_string(data.todayDay) + "日";
-    if (!data.lunarDate.empty()) {
-      leftText += " 农历" + data.lunarDate;
-    }
-    if (!data.festival.empty()) {
-      leftText += " " + data.festival;
-    }
-
-    const int infoY = sepY + 10;
-    canvas.setTextDatum(textdatum_t::top_left);
-    canvas.drawString(leftText.c_str(), sepLeftX, infoY);
-
-    if (!data.solarTerm.empty()) {
-      canvas.setTextDatum(textdatum_t::top_right);
-      canvas.drawString(data.solarTerm.c_str(), sepRightX, infoY);
-    }
-
-    if (data.nextSpecialMonth > 0) {
-      std::string nextLine = std::to_string(data.nextSpecialMonth) + "月" +
-                             std::to_string(data.nextSpecialDay) + "日";
-      if (!data.nextSpecialTerm.empty()) {
-        nextLine += " " + data.nextSpecialTerm;
-      }
-      if (!data.nextSpecialFestival.empty()) {
-        if (!data.nextSpecialTerm.empty()) {
-          nextLine += "、";
-        }
-        nextLine += data.nextSpecialFestival;
-      }
-      canvas.setTextDatum(textdatum_t::top_left);
-      canvas.drawString(nextLine.c_str(), sepLeftX, infoY + 34);
-    }
-
-    if (data.secondSpecialMonth > 0) {
-      std::string secondLine = std::to_string(data.secondSpecialMonth) + "月" +
-                               std::to_string(data.secondSpecialDay) + "日";
-      if (!data.secondSpecialTerm.empty()) {
-        secondLine += " " + data.secondSpecialTerm;
-      }
-      if (!data.secondSpecialFestival.empty()) {
-        if (!data.secondSpecialTerm.empty()) {
-          secondLine += "、";
-        }
-        secondLine += data.secondSpecialFestival;
-      }
-      canvas.setTextDatum(textdatum_t::top_left);
-      canvas.drawString(secondLine.c_str(), sepLeftX, infoY + 68);
+    canvas.setTextDatum(textdatum_t::middle_center);
+    static constexpr const char* kWeeklyWeekdayLabels[] = {"一", "二", "三", "四", "五", "六", "日"};
+    for (int col = 0; col < 7; ++col) {
+      const int cx = cellCenterX(col);
+      canvas.drawString(kWeeklyWeekdayLabels[col], cx, 140);
     }
     canvas.unloadFont();
   }
 
+  // 7. 渲染 Row 2 (公历日期数字)
+  if (canvas.loadFont(generated::kDeviceFontVlw)) {
+    canvas.setTextDatum(textdatum_t::middle_center);
+    for (int col = 0; col < 7; ++col) {
+      const int cx = cellCenterX(col);
+      const int cy = 220;
+
+      if (daysInfo[col].isToday) {
+        canvas.fillSmoothCircle(cx, cy, 20, TFT_BLACK);
+        canvas.setTextColor(TFT_WHITE);
+      } else {
+        canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+      }
+      canvas.drawString(std::to_string(daysInfo[col].tmVal.tm_mday).c_str(), cx, cy);
+    }
+    canvas.unloadFont();
+  }
+
+  // 8. 渲染 Row 3 (农历日期/节日/节气)
+  if (canvas.loadFont(generated::kDeviceLunarFontVlw)) {
+    canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+    canvas.setTextDatum(textdatum_t::middle_center);
+    for (int col = 0; col < 7; ++col) {
+      const int cx = cellCenterX(col);
+
+      std::string lunarText = daysInfo[col].lunarFestival;
+      if (lunarText.empty()) {
+        lunarText = daysInfo[col].solarTerm;
+      }
+      if (lunarText.empty()) {
+        lunarText = daysInfo[col].lunarDate;
+      }
+
+      canvas.drawString(lunarText.c_str(), cx, 300);
+    }
+    canvas.unloadFont();
+  }
+
+  // 9. 渲染 Row 4 (Webcal 节日)
+  if (canvas.loadFont(generated::kDeviceLunarFontVlw)) {
+    canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+    canvas.setTextDatum(textdatum_t::top_center);
+    for (int col = 0; col < 7; ++col) {
+      if (!daysInfo[col].webcalFestival.empty()) {
+        const int cx = cellCenterX(col);
+
+        // 按空格分词
+        std::vector<std::string> tokens;
+        std::string token;
+        for (char ch : daysInfo[col].webcalFestival) {
+          if (ch == ' ') {
+            if (!token.empty()) {
+              tokens.push_back(token);
+              token.clear();
+            }
+          } else {
+            token += ch;
+          }
+        }
+        if (!token.empty()) {
+          tokens.push_back(token);
+        }
+
+        int linesDrawn = 0;
+        for (const auto& tok : tokens) {
+          if (linesDrawn >= 3) break;
+          int lineY = 350 + linesDrawn * 16;
+          canvas.drawString(tok.c_str(), cx, lineY);
+          linesDrawn++;
+        }
+      }
+    }
+    canvas.unloadFont();
+  }
+
+  // 10. 渲染底部状态栏
   if (canvas.loadFont(generated::kDeviceFontVlw)) {
     canvas.setTextColor(TFT_BLACK, TFT_WHITE);
     drawBottomStatusBar(canvas, {data.temperatureAvailable, data.temperatureCelsius,
@@ -326,7 +410,7 @@ void CalendarView::render() {
   std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
   if (local == nullptr) {
     std::tm fallback = fallbackLocalTime();
-    CalendarData data = makeCalendarData(fallback);
+    CalendarData data{};
     applySht40ToCalendar(data);
     data.bottomCenterMessage = formatCurrentTimeHHMM();
 
@@ -334,41 +418,20 @@ void CalendarView::render() {
     return;
   }
 
-  int targetYear = local->tm_year + 1900;
-  int targetMonth = local->tm_mon + 1 + monthOffset_;
-  normalizeYearMonth(targetYear, targetMonth);
-
-  CalendarData data = makeCalendarData(*local);
-  data.year = targetYear;
-  data.month = targetMonth;
-  data.day = (monthOffset_ == 0) ? local->tm_mday : 0;
-
+  CalendarData data{};
   applySht40ToCalendar(data);
   data.bottomCenterMessage = formatCurrentTimeHHMM();
 
   render(data);
 }
 
-void CalendarView::renderWithOffset(int monthOffset) {
-  monthOffset_ = monthOffset;
+void CalendarView::renderWithOffset(int weekOffset) {
+  weekOffset_ = weekOffset;
   render();
 }
 
 void CalendarView::renderSleep() {
-  std::time_t now = std::time(nullptr);
-  std::tm buf{};
-  std::tm* local = now > 0 ? localtime_r(&now, &buf) : nullptr;
-  std::tm fallback = fallbackLocalTime();
-  std::tm* pLocal = local != nullptr ? local : &fallback;
-
-  int targetYear = pLocal->tm_year + 1900;
-  int targetMonth = pLocal->tm_mon + 1 + monthOffset_;
-  normalizeYearMonth(targetYear, targetMonth);
-
-  CalendarData data = makeCalendarData(*pLocal);
-  data.year = targetYear;
-  data.month = targetMonth;
-  data.day = (monthOffset_ == 0) ? pLocal->tm_mday : 0;
+  CalendarData data{};
   data.temperatureAvailable = false;
   data.humidityAvailable = false;
   data.bottomCenterMessage = "--:--";
@@ -377,26 +440,26 @@ void CalendarView::renderSleep() {
 }
 
 void CalendarView::onButtonA() {
-  if (monthOffset_ > -120) {
-    monthOffset_--;
-    renderWithOffset(monthOffset_);
+  if (weekOffset_ > -520) {
+    weekOffset_--;
+    renderWithOffset(weekOffset_);
   }
 }
 
 void CalendarView::onButtonB() {
-  if (monthOffset_ < 120) {
-    monthOffset_++;
-    renderWithOffset(monthOffset_);
+  if (weekOffset_ < 520) {
+    weekOffset_++;
+    renderWithOffset(weekOffset_);
   }
 }
 
 void CalendarView::reset() {
-  monthOffset_ = 0;
+  weekOffset_ = 0;
   render();
 }
 
 void CalendarView::resetOffset() {
-  monthOffset_ = 0;
+  weekOffset_ = 0;
 }
 
 }  // namespace homedeck

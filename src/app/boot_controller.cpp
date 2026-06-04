@@ -13,8 +13,8 @@ constexpr std::time_t kTrustedUnixTimeThreshold = 1704067200;
 constexpr std::uint64_t kMicrosPerSecond = 1000000ULL;
 constexpr std::uint64_t kFallbackSleepSeconds = 3600ULL;
 constexpr int kButtonCWakeupGpio = 1;
-constexpr int kCalendarMonthOffsetMin = -120;
-constexpr int kCalendarMonthOffsetMax = 120;
+constexpr int kCalendarWeekOffsetMin = -520;
+constexpr int kCalendarWeekOffsetMax = 520;
 constexpr int kAlmanacDayOffsetMin = -3650;
 constexpr int kAlmanacDayOffsetMax = 3650;
 
@@ -79,7 +79,7 @@ void BootController::update() {
         }
         if (view == SystemView::Calendar) {
           if (deps_.renderCalendarWithOffset) {
-            deps_.renderCalendarWithOffset(calendarMonthOffset_);
+            deps_.renderCalendarWithOffset(calendarWeekOffset_);
           }
         } else if (view == SystemView::Weather) {
           if (deps_.renderWeather) {
@@ -103,7 +103,7 @@ void BootController::update() {
   if (btnCClicks == 1) {
     if (viewManager_) {
       // 切换视图前重置所有 offset，确保每次进入视图都是初始状态
-      calendarMonthOffset_ = 0;
+      calendarWeekOffset_ = 0;
       almanacDayOffset_ = 0;
       if (deps_.resetCalendarView) {
         deps_.resetCalendarView();
@@ -121,7 +121,7 @@ void BootController::update() {
   } else if (btnCClicks >= 2) {
     if (viewManager_) {
       if (viewManager_->currentView() == SystemView::Calendar) {
-        calendarMonthOffset_ = 0;
+        calendarWeekOffset_ = 0;
         if (deps_.renderCalendarWithOffset) {
           deps_.renderCalendarWithOffset(0);
         }
@@ -147,18 +147,18 @@ void BootController::update() {
   if (viewManager_ && viewManager_->currentView() == SystemView::Calendar) {
     bool calendarUpdated = false;
     if (deps_.wasPrevMonthClicked && deps_.wasPrevMonthClicked()) {
-      if (calendarMonthOffset_ > kCalendarMonthOffsetMin) {
-        calendarMonthOffset_--;
+      if (calendarWeekOffset_ > kCalendarWeekOffsetMin) {
+        calendarWeekOffset_--;
         calendarUpdated = true;
       }
     } else if (deps_.wasNextMonthClicked && deps_.wasNextMonthClicked()) {
-      if (calendarMonthOffset_ < kCalendarMonthOffsetMax) {
-        calendarMonthOffset_++;
+      if (calendarWeekOffset_ < kCalendarWeekOffsetMax) {
+        calendarWeekOffset_++;
         calendarUpdated = true;
       }
     }
     if (calendarUpdated && deps_.renderCalendarWithOffset) {
-      deps_.renderCalendarWithOffset(calendarMonthOffset_);
+      deps_.renderCalendarWithOffset(calendarWeekOffset_);
       lastActivityMs_ = now;
     }
   }
@@ -207,7 +207,7 @@ void BootController::enterSystemMode() {
   setupButtonsWerePressed_ = false;
   setupShortcutConsumed_ = false;
   homeSleepRequested_ = false;
-  calendarMonthOffset_ = 0;
+  calendarWeekOffset_ = 0;
   almanacDayOffset_ = 0;
   btnCPressedSinceMs_ = 0;
   btnCLongPressedConsumed_ = false;
@@ -245,7 +245,7 @@ void BootController::updateHomeSleep(unsigned long now) {
   }
 
   homeSleepRequested_ = true;
-  calendarMonthOffset_ = 0;
+  calendarWeekOffset_ = 0;
   almanacDayOffset_ = 0;
 
   // 进入 deep sleep 前重置当前视图的 offset，确保休眠画面显示初始状态

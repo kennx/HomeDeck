@@ -38,15 +38,15 @@ class CalendarView {
  public:
   void render();
   void render(const CalendarData& data);
-  void renderWithOffset(int monthOffset);
+  void renderWithOffset(int weekOffset);
   void renderSleep();
-  void onButtonA();  // prev month
-  void onButtonB();  // next month
+  void onButtonA();  // prev week
+  void onButtonB();  // next week
   void reset();      // reset offset and render
   void resetOffset(); // reset offset only, no render
 
  private:
-  int monthOffset_ = 0;
+  int weekOffset_ = 0;
 };
 
 }  // namespace homedeck

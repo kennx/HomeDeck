@@ -262,8 +262,8 @@ void renderCalendarWithEnvironment() {
   gCalendarView.render();
 }
 
-void renderCalendarWithOffset(int monthOffset) {
-  gCalendarView.renderWithOffset(monthOffset);
+void renderCalendarWithOffset(int weekOffset) {
+  gCalendarView.renderWithOffset(weekOffset);
 }
 
 void renderAlmanacWithOffset(int dayOffset) {

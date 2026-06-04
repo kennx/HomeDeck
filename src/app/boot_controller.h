@@ -36,7 +36,7 @@ struct BootControllerDeps {
   std::function<void()> renderCalendar;
   std::function<void()> renderCountdown;
   std::function<void()> renderWeather;
-  std::function<void(int monthOffset)> renderCalendarWithOffset;
+  std::function<void(int weekOffset)> renderCalendarWithOffset;
   std::function<void(int dayOffset)> renderAlmanacWithOffset;
   std::function<int()> getCalendarButtonClickCount;
   std::function<bool()> wasPrevMonthClicked;
@@ -81,7 +81,7 @@ class BootController {
   bool setupShortcutConsumed_ = false;
   unsigned long lastActivityMs_ = 0;
   bool homeSleepRequested_ = false;
-  int calendarMonthOffset_ = 0;
+  int calendarWeekOffset_ = 0;
   int almanacDayOffset_ = 0;
   unsigned long btnCPressedSinceMs_ = 0;
   bool btnCLongPressedConsumed_ = false;
