@@ -134,8 +134,12 @@ void initRgbLed() {
 }
 
 void prepareEpdAfterWakeup() {
+  // 冷启动基线清屏：墨水屏断电后仍保留旧画面，fast 刷新盖不住会产生残影，
+  // 必须在 quality 模式下全量清屏一次。deep sleep 唤醒走 prepareEpdAfterDeepSleep()，不做此清屏。
   M5.Display.setEpdMode(epd_mode_t::epd_quality);
   M5.Display.wakeup();
+  M5.Display.clear(TFT_WHITE);
+  M5.Display.waitDisplay();
   M5.Display.setEpdMode(epd_mode_t::epd_fast);
 }
 
