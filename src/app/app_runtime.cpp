@@ -157,13 +157,14 @@ void resetEpdController() {
   delay(kEpdResetHighMs);
 }
 
-// 冷启动白刷次数：Spectra 6 面板对长时间停留的画面有"烧入"残影，
-// 单次白刷无法完全擦除（表现为旧画面以淡灰色叠加在新画面上），需要连续多次。
-constexpr int kEpdColdBootClearPasses = 2;
+// 冷启动冲刷次数：Spectra 6 面板对长时间停留的画面存在物理烧入（粒子卡住），
+// 单方向白刷无法冲开，需要黑白交替的极性驱动（白→黑→白共 3 次）。
+constexpr int kEpdColdBootClearPasses = 3;
 
 void prepareEpdAfterWakeup() {
   // 冷启动基线清屏：墨水屏断电后仍保留旧画面，fast 刷新盖不住会产生残影。
-  // 连续做 kEpdColdBootClearPasses 次 quality 全量白刷，擦除长时间烧入的旧画面。
+  // 白→黑→白交替全量刷新：把长时间烧入的粒子在两个极性间来回冲刷，
+  // 残余残影随后续每次全量刷新（每日唤醒渲染）继续自然消退。
   // deep sleep 唤醒走 prepareEpdAfterDeepSleep()，不做此清屏。
   M5.Display.setEpdMode(epd_mode_t::epd_quality);
 #ifndef UNIT_TEST
@@ -173,14 +174,16 @@ void prepareEpdAfterWakeup() {
 #ifndef UNIT_TEST
   EPDDBG("after wakeup busy=%d", gpio_get_level(GPIO_NUM_11));
 #endif
-  for (int pass = 1; pass <= kEpdColdBootClearPasses; ++pass) {
-    M5.Display.clear(TFT_WHITE);
+  for (int pass = 0; pass < kEpdColdBootClearPasses; ++pass) {
+    const std::uint32_t clearColor = (pass % 2 == 0) ? TFT_WHITE : TFT_BLACK;
+    M5.Display.clear(clearColor);
 #ifndef UNIT_TEST
-    EPDDBG("after clear pass=%d busy=%d", pass, gpio_get_level(GPIO_NUM_11));
+    EPDDBG("after clear pass=%d color=%s busy=%d", pass + 1,
+           clearColor == TFT_WHITE ? "white" : "black", gpio_get_level(GPIO_NUM_11));
 #endif
     M5.Display.waitDisplay();
 #ifndef UNIT_TEST
-    EPDDBG("after waitDisplay pass=%d busy=%d", pass, gpio_get_level(GPIO_NUM_11));
+    EPDDBG("after waitDisplay pass=%d busy=%d", pass + 1, gpio_get_level(GPIO_NUM_11));
 #endif
   }
   M5.Display.setEpdMode(epd_mode_t::epd_fast);
