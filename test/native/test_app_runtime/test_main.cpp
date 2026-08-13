@@ -21,6 +21,7 @@ extern SystemView gRtcSavedView;
 void prepareEpdAfterWakeupForTest();
 void initRgbLedForTest();
 void shutdownRgbLedForSleepForTest();
+void powerCycleEpdForTest();
 }
 
 namespace {
@@ -101,7 +102,7 @@ void setUp() {
 void tearDown() {
 }
 
-void test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_display_sleep() {
+void test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_skips_panel_sleep_command() {
   M5.In_I2C.enabled = true;
   loadEnvironmentFrame(28086, 29360);
   homedeck::HomeSleepRequest request{};
@@ -124,9 +125,40 @@ void test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_display_sleep
   TEST_ASSERT_EQUAL(ESP_PD_OPTION_ON, gFakeSleepPdOption);
   TEST_ASSERT_EQUAL(1, gFakeExt0Gpio);
   TEST_ASSERT_EQUAL(0, gFakeExt0Level);
-  TEST_ASSERT_EQUAL(1, M5.Display.sleepCount);
+  // 不再向面板发送 DEEP_SLEEP 命令（面板卡死后无法可靠唤醒），仅等待刷新完成。
+  TEST_ASSERT_EQUAL(0, M5.Display.sleepCount);
   TEST_ASSERT_EQUAL(1, M5.Display.waitDisplayCount);
   TEST_ASSERT_TRUE(gDeepSleepCalled);
+}
+
+void test_enter_home_deep_sleep_powers_down_epd_when_pm1_ready() {
+  M5.In_I2C.enabled = true;
+  loadEnvironmentFrame(28086, 29360);
+  homedeck::initRgbLedForTest();
+  homedeck::HomeSleepRequest request{};
+  request.timerWakeupUs = 43200000000ULL;
+  request.wakeupGpio = 1;
+  request.wakeOnLow = true;
+
+  homedeck::enterHomeDeepSleep(request);
+
+  TEST_ASSERT_TRUE(gDeepSleepCalled);
+  TEST_ASSERT_EQUAL(0, M5.Display.sleepCount);
+  // EPD 供电（M5PM1 GPIO0）被配置为输出并拉低：断电保存画面，而不是让面板进入深睡。
+  bool foundOutput = false;
+  for (const auto& call : gFakePm1PinModes) {
+    if (call.first == 0 && call.second == OUTPUT) {
+      foundOutput = true;
+    }
+  }
+  TEST_ASSERT_TRUE(foundOutput);
+  bool foundLow = false;
+  for (const auto& call : gFakePm1DigitalWrites) {
+    if (call.first == 0 && call.second == LOW) {
+      foundLow = true;
+    }
+  }
+  TEST_ASSERT_TRUE(foundLow);
 }
 
 void test_enter_home_deep_sleep_does_not_touch_i2c() {
@@ -189,6 +221,27 @@ void test_init_rgb_led_enables_power_and_keeps_pixels_off() {
   TEST_ASSERT_EQUAL(1, gFakeNeoPixelBeginCount);
   TEST_ASSERT_EQUAL(1, gFakeNeoPixelClearCount);
   TEST_ASSERT_EQUAL(1, gFakeNeoPixelShowCount);
+}
+
+void test_power_cycle_epd_restarts_panel_power_and_reinits() {
+  homedeck::initRgbLedForTest();
+  const int wakeupCountBefore = M5.Display.wakeupCount;
+
+  homedeck::powerCycleEpdForTest();
+
+  // M5PM1 GPIO0：配置为输出 → 拉低（断电）→ 拉高（上电）。
+  TEST_ASSERT_FALSE(gFakePm1PinModes.empty());
+  TEST_ASSERT_EQUAL(0, gFakePm1PinModes.back().first);
+  TEST_ASSERT_EQUAL(OUTPUT, gFakePm1PinModes.back().second);
+  TEST_ASSERT_GREATER_OR_EQUAL(2, static_cast<int>(gFakePm1DigitalWrites.size()));
+  const auto& low = gFakePm1DigitalWrites[gFakePm1DigitalWrites.size() - 2];
+  const auto& high = gFakePm1DigitalWrites[gFakePm1DigitalWrites.size() - 1];
+  TEST_ASSERT_EQUAL(0, low.first);
+  TEST_ASSERT_EQUAL(LOW, low.second);
+  TEST_ASSERT_EQUAL(0, high.first);
+  TEST_ASSERT_EQUAL(HIGH, high.second);
+  // 上电后重发面板初始化序列。
+  TEST_ASSERT_EQUAL(wakeupCountBefore + 1, M5.Display.wakeupCount);
 }
 
 void test_sync_ntp_waits_for_sntp_completion_even_when_clock_is_already_modern() {
@@ -351,12 +404,14 @@ void test_enter_home_deep_sleep_does_not_sleep_when_ext0_wakeup_fails() {
 
 int main(int, char**) {
   UNITY_BEGIN();
-  RUN_TEST(test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_display_sleep);
+  RUN_TEST(test_enter_home_deep_sleep_configures_timer_button_c_gpio_and_skips_panel_sleep_command);
+  RUN_TEST(test_enter_home_deep_sleep_powers_down_epd_when_pm1_ready);
   RUN_TEST(test_enter_home_deep_sleep_does_not_touch_i2c);
   RUN_TEST(test_shutdown_rgb_led_for_sleep_turns_off_rgb_pixels_and_ldo);
   RUN_TEST(test_app_setup_reapplies_timezone_after_rtc_restore);
   RUN_TEST(test_prepare_epd_after_wakeup_clears_ghosting_with_quality_baseline_refresh);
   RUN_TEST(test_init_rgb_led_enables_power_and_keeps_pixels_off);
+  RUN_TEST(test_power_cycle_epd_restarts_panel_power_and_reinits);
   RUN_TEST(test_sync_ntp_waits_for_sntp_completion_even_when_clock_is_already_modern);
   RUN_TEST(test_sync_ntp_returns_time_after_sntp_completion);
   RUN_TEST(test_write_rtc_utc_accepts_one_second_readback_drift);

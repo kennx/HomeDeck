@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 struct FakeI2C;
@@ -14,11 +15,15 @@ inline constexpr std::uint32_t M5PM1_I2C_FREQ_100K = 100000;
 inline int gFakePm1BeginCount = 0;
 inline bool gFakePm1BeginShouldFail = false;
 inline std::vector<bool> gFakePm1LdoEnableCalls;
+inline std::vector<std::pair<std::uint8_t, std::uint8_t>> gFakePm1PinModes;
+inline std::vector<std::pair<std::uint8_t, std::uint8_t>> gFakePm1DigitalWrites;
 
 inline void fakeM5Pm1Reset() {
   gFakePm1BeginCount = 0;
   gFakePm1BeginShouldFail = false;
   gFakePm1LdoEnableCalls.clear();
+  gFakePm1PinModes.clear();
+  gFakePm1DigitalWrites.clear();
 }
 
 class M5PM1 {
@@ -31,5 +36,13 @@ class M5PM1 {
   m5pm1_err_t setLdoEnable(bool enable) {
     gFakePm1LdoEnableCalls.push_back(enable);
     return M5PM1_OK;
+  }
+
+  void pinMode(std::uint8_t pin, std::uint8_t mode) {
+    gFakePm1PinModes.push_back({pin, mode});
+  }
+
+  void digitalWrite(std::uint8_t pin, std::uint8_t value) {
+    gFakePm1DigitalWrites.push_back({pin, value});
   }
 };

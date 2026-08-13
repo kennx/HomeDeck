@@ -133,13 +133,31 @@ void initRgbLed() {
   clearRgbLedPixels();
 }
 
+#ifndef UNIT_TEST
+// EPD 状态诊断日志：esp_log 输出在 USB 重连后仍可被捕获，
+// 用于排查墨水屏不刷新类问题（busy 电平、board 识别、供电时序）。
+#define EPDDBG(...) ESP_LOGI("epddbg", __VA_ARGS__)
+#endif
+
 void prepareEpdAfterWakeup() {
   // 冷启动基线清屏：墨水屏断电后仍保留旧画面，fast 刷新盖不住会产生残影，
   // 必须在 quality 模式下全量清屏一次。deep sleep 唤醒走 prepareEpdAfterDeepSleep()，不做此清屏。
   M5.Display.setEpdMode(epd_mode_t::epd_quality);
+#ifndef UNIT_TEST
+  EPDDBG("before wakeup busy=%d", gpio_get_level(GPIO_NUM_11));
+#endif
   M5.Display.wakeup();
+#ifndef UNIT_TEST
+  EPDDBG("after wakeup busy=%d", gpio_get_level(GPIO_NUM_11));
+#endif
   M5.Display.clear(TFT_WHITE);
+#ifndef UNIT_TEST
+  EPDDBG("after clear busy=%d", gpio_get_level(GPIO_NUM_11));
+#endif
   M5.Display.waitDisplay();
+#ifndef UNIT_TEST
+  EPDDBG("after waitDisplay busy=%d", gpio_get_level(GPIO_NUM_11));
+#endif
   M5.Display.setEpdMode(epd_mode_t::epd_fast);
 }
 
@@ -149,6 +167,39 @@ void prepareEpdAfterDeepSleep() {
   M5.Display.wakeup();
 }
 #endif
+
+// M5PM1 GPIO0 = PY_EPD_EN，墨水屏供电使能（见 docs/PaperColor.md 管脚映射）。
+constexpr std::uint8_t kPm1EpdEnableGpio = 0;
+constexpr unsigned long kEpdPowerCycleOffMs = 100;
+constexpr unsigned long kEpdPowerCycleOnMs = 100;
+
+void disableEpdPower() {
+  // 墨水屏是双稳态的：控制器断电不丢失画面。
+  // 直接断电而不是发送 DEEP_SLEEP 命令——ED2208 深度睡眠后缺少硬件复位恢复路径，
+  // 面板卡死后所有后续刷新都会失效（屏幕停留在旧画面，表现为"刷了固件也没变化"）。
+  if (!gPm1Ready) {
+    return;
+  }
+  gPm1.pinMode(kPm1EpdEnableGpio, OUTPUT);
+  gPm1.digitalWrite(kPm1EpdEnableGpio, LOW);
+}
+
+void powerCycleEpd() {
+  // 每次启动都断电重启墨水屏控制器，再重发初始化序列：
+  // M5GFX 对 PaperColor 的首轮初始化不带硬件复位（_pin_reset 的 use_reset=false），
+  // 面板可能残留上一次固件 DEEP_SLEEP 后的卡死状态，断电是最可靠的恢复手段。
+  if (!gPm1Ready) {
+    // PM1 不可用时退化为仅重发初始化序列。
+    M5.Display.wakeup();
+    return;
+  }
+  gPm1.pinMode(kPm1EpdEnableGpio, OUTPUT);
+  gPm1.digitalWrite(kPm1EpdEnableGpio, LOW);
+  delay(kEpdPowerCycleOffMs);
+  gPm1.digitalWrite(kPm1EpdEnableGpio, HIGH);
+  delay(kEpdPowerCycleOnMs);
+  M5.Display.wakeup();
+}
 
 ConfigStore gConfigStore;
 ConfigPortalRenderer gConfigPortalRenderer;
@@ -400,6 +451,10 @@ void prepareEpdAfterWakeupForTest() {
   prepareEpdAfterWakeup();
 }
 
+void powerCycleEpdForTest() {
+  powerCycleEpd();
+}
+
 void initRgbLedForTest() {
   initRgbLed();
 }
@@ -431,8 +486,11 @@ void enterHomeDeepSleep(const HomeSleepRequest& request) {
   if (esp_sleep_enable_ext0_wakeup(wakeupGpio, request.wakeOnLow ? 0 : 1) != ESP_OK) {
     return;
   }
-  M5.Display.sleep();
+  // 等待睡眠画面（preSleepRender）刷新完成后直接断电墨水屏控制器。
+  // 不调用 M5.Display.sleep()：ED2208 的 DEEP_SLEEP 命令缺少可靠的硬件复位唤醒路径，
+  // 面板卡死后所有后续刷新都会失效（屏幕停留在旧画面）。
   M5.Display.waitDisplay();
+  disableEpdPower();
   M5.Power.deepSleep(request.timerWakeupUs, false);
 }
 
@@ -532,6 +590,9 @@ BootControllerDeps makeBootDeps() {
     };
     gConfigPortal.begin(apSsid, gConfigStore.loadSetupConfig(), saveSubmittedConfig, batteryProvider);
     gConfigPortalRenderer.renderConfigPortal(apSsid, softApIpAddress());
+#ifndef UNIT_TEST
+    EPDDBG("config portal rendered busy=%d", gpio_get_level(GPIO_NUM_11));
+#endif
   };
   deps.handleConfigPortalClient = []() { gConfigPortal.handleClient(); };
   deps.restoreSystemTimeFromRtc = []() {
@@ -612,6 +673,7 @@ BootControllerDeps makeBootDeps() {
 
 void appSetup() {
 #ifndef UNIT_TEST
+  EPDDBG("appSetup enter reset=%d", static_cast<int>(esp_reset_reason()));
   if (esp_reset_reason() != ESP_RST_POWERON) {
     i2cBusRecovery();
   }
@@ -621,19 +683,35 @@ void appSetup() {
   M5.begin(cfg);
   M5.Display.setRotation(0);
 #ifndef UNIT_TEST
+  EPDDBG("M5.begin done board=%d gfxBoard=%d busy=%d",
+         static_cast<int>(M5.getBoard()),
+         static_cast<int>(M5.Display.getBoard()),
+         gpio_get_level(GPIO_NUM_11));
+#endif
+  // PM1 必须在墨水屏供电控制之前就绪。
+  initRgbLed();
+  powerCycleEpd();
+#ifndef UNIT_TEST
+  EPDDBG("epd power cycle done busy=%d", gpio_get_level(GPIO_NUM_11));
   if (esp_reset_reason() == ESP_RST_DEEPSLEEP) {
     prepareEpdAfterDeepSleep();
   } else {
     prepareEpdAfterWakeup();
   }
+  EPDDBG("epd prep done busy=%d", gpio_get_level(GPIO_NUM_11));
 #else
   prepareEpdAfterWakeup();
 #endif
-  initRgbLed();
   gConfigStore.begin();
   gTimeService = std::make_unique<TimeService>(makeTimeDeps());
   gBootController = std::make_unique<BootController>(makeBootDeps());
+#ifndef UNIT_TEST
+  EPDDBG("before controller begin");
+#endif
   gBootController->begin();
+#ifndef UNIT_TEST
+  EPDDBG("controller begin done");
+#endif
 }
 
 void appLoop() {

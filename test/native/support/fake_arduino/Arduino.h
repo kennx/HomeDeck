@@ -24,7 +24,11 @@ inline void fakeArduinoSetMillis(unsigned long value) {
   gFakeMillis = static_cast<std::uint32_t>(value);
 }
 
+constexpr std::uint8_t INPUT = 0x00;
+constexpr std::uint8_t OUTPUT = 0x01;
 constexpr std::uint8_t INPUT_PULLUP = 0x05;
+constexpr std::uint8_t LOW = 0x00;
+constexpr std::uint8_t HIGH = 0x01;
 inline int gFakeLastPinModePin = -1;
 inline std::uint8_t gFakeLastPinModeMode = 0;
 inline int gFakePinModeCalls = 0;
