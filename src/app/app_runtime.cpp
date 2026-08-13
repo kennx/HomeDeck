@@ -139,6 +139,24 @@ void initRgbLed() {
 #define EPDDBG(...) ESP_LOGI("epddbg", __VA_ARGS__)
 #endif
 
+// ED2208 数据手册：退出 Deep Sleep 必须发送 HWRESET（RES# 低电平有效，GPIO12）。
+// 旧固件的 M5.Display.sleep() 会把面板送入深睡；M5GFX 首轮初始化不带硬件复位，
+// 深睡中的面板无视所有 SPI 命令并保持 BUSY_N 拉低，每次 busy 等待都烧满 20s 超时。
+// 因此在 M5.begin 之前先脉冲 RES#，让面板在初始化前就退出深睡。
+constexpr int kEpdResetPin = 12;
+constexpr unsigned long kEpdResetLowMs = 10;
+constexpr unsigned long kEpdResetHighMs = 10;
+
+void resetEpdController() {
+  pinMode(kEpdResetPin, OUTPUT);
+  digitalWrite(kEpdResetPin, HIGH);
+  delay(2);
+  digitalWrite(kEpdResetPin, LOW);
+  delay(kEpdResetLowMs);
+  digitalWrite(kEpdResetPin, HIGH);
+  delay(kEpdResetHighMs);
+}
+
 void prepareEpdAfterWakeup() {
   // 冷启动基线清屏：墨水屏断电后仍保留旧画面，fast 刷新盖不住会产生残影，
   // 必须在 quality 模式下全量清屏一次。deep sleep 唤醒走 prepareEpdAfterDeepSleep()，不做此清屏。
@@ -464,6 +482,10 @@ void powerCycleEpdForTest() {
   powerCycleEpd();
 }
 
+void resetEpdControllerForTest() {
+  resetEpdController();
+}
+
 void initRgbLedForTest() {
   initRgbLed();
 }
@@ -687,8 +709,18 @@ void appSetup() {
     i2cBusRecovery();
   }
 #endif
+  // 在 M5.begin 之前先复位墨水屏控制器：ED2208 退出深睡必须走 HWRESET，
+  // 否则面板保持 BUSY_N 拉低，后续每次 busy 等待都会烧满 20s 超时。
+  resetEpdController();
+#ifndef UNIT_TEST
+  EPDDBG("epd hwreset done busy=%d", gpio_get_level(GPIO_NUM_11));
+#endif
   auto cfg = M5.config();
   cfg.clear_display = false;
+  // HomeDeck 不使用板载音频；禁用可避免 M5.begin 在共享 I2C 总线上探测
+  // 未供电的编解码芯片（ES8311/ES7210），产生大量 i2c write NACK。
+  cfg.internal_spk = false;
+  cfg.internal_mic = false;
   M5.begin(cfg);
   M5.Display.setRotation(0);
 #ifndef UNIT_TEST
@@ -699,6 +731,9 @@ void appSetup() {
 #endif
   // PM1 必须在墨水屏供电控制之前就绪。
   initRgbLed();
+#ifndef UNIT_TEST
+  EPDDBG("pm1 ready=%d", gPm1Ready ? 1 : 0);
+#endif
   powerCycleEpd();
 #ifndef UNIT_TEST
   EPDDBG("epd power cycle done busy=%d", gpio_get_level(GPIO_NUM_11));

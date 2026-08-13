@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
+#include <vector>
 
 inline std::uint32_t gFakeMillis = 0;
 inline std::string gFakeTimezone;
@@ -32,11 +34,16 @@ constexpr std::uint8_t HIGH = 0x01;
 inline int gFakeLastPinModePin = -1;
 inline std::uint8_t gFakeLastPinModeMode = 0;
 inline int gFakePinModeCalls = 0;
+inline std::vector<std::pair<std::uint8_t, std::uint8_t>> gFakeDigitalWrites;
 
 inline void pinMode(std::uint8_t pin, std::uint8_t mode) {
   ++gFakePinModeCalls;
   gFakeLastPinModePin = pin;
   gFakeLastPinModeMode = mode;
+}
+
+inline void digitalWrite(std::uint8_t pin, std::uint8_t value) {
+  gFakeDigitalWrites.push_back({pin, value});
 }
 
 inline void fakeArduinoResetClock() {
@@ -45,6 +52,7 @@ inline void fakeArduinoResetClock() {
   gFakeLastPinModePin = -1;
   gFakeLastPinModeMode = 0;
   gFakePinModeCalls = 0;
+  gFakeDigitalWrites.clear();
 }
 
 inline void delay(unsigned long ms) {

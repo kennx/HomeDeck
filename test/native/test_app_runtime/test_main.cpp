@@ -23,6 +23,7 @@ void prepareEpdAfterWakeupForTest();
 void initRgbLedForTest();
 void shutdownRgbLedForSleepForTest();
 void powerCycleEpdForTest();
+void resetEpdControllerForTest();
 ConfigValidationResult saveSubmittedConfigForTest(
     const SetupConfig& config,
     const ManualDateTime& manualDateTime);
@@ -277,6 +278,26 @@ void test_power_cycle_epd_restarts_panel_power_and_reinits() {
   TEST_ASSERT_EQUAL(wakeupCountBefore + 1, M5.Display.wakeupCount);
 }
 
+void test_reset_epd_controller_pulses_reset_pin_low() {
+  homedeck::resetEpdControllerForTest();
+
+  // RES#（GPIO12，低电平有效）：先置高 → 拉低 10ms → 恢复高。
+  TEST_ASSERT_EQUAL(12, gFakeLastPinModePin);
+  TEST_ASSERT_EQUAL(OUTPUT, gFakeLastPinModeMode);
+  TEST_ASSERT_GREATER_OR_EQUAL(3, static_cast<int>(gFakeDigitalWrites.size()));
+  TEST_ASSERT_EQUAL(12, gFakeDigitalWrites.front().first);
+  TEST_ASSERT_EQUAL(HIGH, gFakeDigitalWrites.front().second);
+  TEST_ASSERT_EQUAL(12, gFakeDigitalWrites.back().first);
+  TEST_ASSERT_EQUAL(HIGH, gFakeDigitalWrites.back().second);
+  bool sawLow = false;
+  for (const auto& write : gFakeDigitalWrites) {
+    if (write.first == 12 && write.second == LOW) {
+      sawLow = true;
+    }
+  }
+  TEST_ASSERT_TRUE(sawLow);
+}
+
 void test_sync_ntp_waits_for_sntp_completion_even_when_clock_is_already_modern() {
   time_t syncedUnix = 0;
 
@@ -446,6 +467,7 @@ int main(int, char**) {
   RUN_TEST(test_prepare_epd_after_wakeup_clears_ghosting_with_quality_baseline_refresh);
   RUN_TEST(test_init_rgb_led_enables_power_and_keeps_pixels_off);
   RUN_TEST(test_power_cycle_epd_restarts_panel_power_and_reinits);
+  RUN_TEST(test_reset_epd_controller_pulses_reset_pin_low);
   RUN_TEST(test_sync_ntp_waits_for_sntp_completion_even_when_clock_is_already_modern);
   RUN_TEST(test_sync_ntp_returns_time_after_sntp_completion);
   RUN_TEST(test_write_rtc_utc_accepts_one_second_readback_drift);
