@@ -15,6 +15,7 @@
 
 #include "app/app_runtime.h"
 #include "app/boot_controller.h"
+#include "config/config_validator.h"
 
 namespace homedeck {
 extern SystemView gRtcSavedView;
@@ -22,6 +23,9 @@ void prepareEpdAfterWakeupForTest();
 void initRgbLedForTest();
 void shutdownRgbLedForSleepForTest();
 void powerCycleEpdForTest();
+ConfigValidationResult saveSubmittedConfigForTest(
+    const SetupConfig& config,
+    const ManualDateTime& manualDateTime);
 }
 
 namespace {
@@ -203,6 +207,35 @@ void test_app_setup_reapplies_timezone_after_rtc_restore() {
 
   TEST_ASSERT_TRUE(M5.Rtc.setSystemTimeFromRtcCalled);
   TEST_ASSERT_EQUAL_STRING("CST-8", std::getenv("TZ"));
+}
+
+void test_save_submitted_config_resets_saved_view_to_almanac() {
+  setenv("TZ", "UTC", 1);
+  tzset();
+  gFakePreferenceBools["configured"] = true;
+  gFakePreferenceStrings["tz"] = "Asia/Shanghai";
+  M5.Rtc.enabled = true;
+  M5.Rtc.getDateTimeOk = true;
+  homedeck::appSetup();
+
+  homedeck::gRtcSavedView = homedeck::SystemView::Calendar;
+  homedeck::SetupConfig config{};
+  config.timezoneIana = "Asia/Shanghai";
+  homedeck::ManualDateTime manual{};
+  manual.present = true;
+  manual.year = 2026;
+  manual.month = 8;
+  manual.day = 13;
+  manual.hour = 12;
+  manual.minute = 0;
+  manual.second = 0;
+
+  const homedeck::ConfigValidationResult result =
+      homedeck::saveSubmittedConfigForTest(config, manual);
+
+  TEST_ASSERT_TRUE(result.ok());
+  TEST_ASSERT_TRUE(gFakePreferenceBools["configured"]);
+  TEST_ASSERT_EQUAL(homedeck::SystemView::Almanac, homedeck::gRtcSavedView);
 }
 
 void test_prepare_epd_after_wakeup_clears_ghosting_with_quality_baseline_refresh() {
@@ -409,6 +442,7 @@ int main(int, char**) {
   RUN_TEST(test_enter_home_deep_sleep_does_not_touch_i2c);
   RUN_TEST(test_shutdown_rgb_led_for_sleep_turns_off_rgb_pixels_and_ldo);
   RUN_TEST(test_app_setup_reapplies_timezone_after_rtc_restore);
+  RUN_TEST(test_save_submitted_config_resets_saved_view_to_almanac);
   RUN_TEST(test_prepare_epd_after_wakeup_clears_ghosting_with_quality_baseline_refresh);
   RUN_TEST(test_init_rgb_led_enables_power_and_keeps_pixels_off);
   RUN_TEST(test_power_cycle_epd_restarts_panel_power_and_reinits);

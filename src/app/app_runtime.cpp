@@ -308,6 +308,9 @@ ConfigValidationResult saveSubmittedConfig(
   if (!gConfigStore.saveSetupConfig(config) || !gConfigStore.saveConfigured(true)) {
     return ConfigValidationResult{ConfigValidationError::InvalidManualDateTime, "保存配置失败。"};
   }
+  // 配置成功后固定回到默认黄历视图，避免沿用 RTC 中残留的历史视图，
+  // 保证设备重启后直接进入黄历界面。
+  gRtcSavedView = SystemView::Almanac;
   return ConfigValidationResult{};
 }
 
@@ -445,6 +448,12 @@ bool syncNtpForTest(
 
 bool writeRtcUtcForTest(time_t unixTime) {
   return writeRtcUtc(unixTime);
+}
+
+ConfigValidationResult saveSubmittedConfigForTest(
+    const SetupConfig& config,
+    const ManualDateTime& manualDateTime) {
+  return saveSubmittedConfig(config, manualDateTime);
 }
 
 void prepareEpdAfterWakeupForTest() {
