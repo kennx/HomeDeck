@@ -68,33 +68,26 @@ bool hasDeepSleepPrint() {
 bool hasColdBootEpdBaselineClearSequence() {
   using Event = FakeDisplay::FakeEpdEvent;
   const auto& events = M5.Display.epdEvents;
-  for (std::size_t i = 0; i + 8 < events.size(); ++i) {
+  for (std::size_t i = 0; i + 6 < events.size(); ++i) {
     if (events[i].type != Event::Type::SetMode || events[i].mode != epd_mode_t::epd_quality) {
       continue;
     }
     if (events[i + 1].type != Event::Type::Wakeup) {
       continue;
     }
-    // 白 → 黑 → 白 交替极性冲刷
     if (events[i + 2].type != Event::Type::Clear || events[i + 2].color != TFT_WHITE) {
       continue;
     }
     if (events[i + 3].type != Event::Type::WaitDisplay) {
       continue;
     }
-    if (events[i + 4].type != Event::Type::Clear || events[i + 4].color != TFT_BLACK) {
+    if (events[i + 4].type != Event::Type::Clear || events[i + 4].color != TFT_WHITE) {
       continue;
     }
     if (events[i + 5].type != Event::Type::WaitDisplay) {
       continue;
     }
-    if (events[i + 6].type != Event::Type::Clear || events[i + 6].color != TFT_WHITE) {
-      continue;
-    }
-    if (events[i + 7].type != Event::Type::WaitDisplay) {
-      continue;
-    }
-    if (events[i + 8].type != Event::Type::SetMode || events[i + 8].mode != epd_mode_t::epd_fast) {
+    if (events[i + 6].type != Event::Type::SetMode || events[i + 6].mode != epd_mode_t::epd_fast) {
       continue;
     }
     return true;
@@ -256,8 +249,8 @@ void test_prepare_epd_after_wakeup_clears_ghosting_with_quality_baseline_refresh
   homedeck::prepareEpdAfterWakeupForTest();
 
   TEST_ASSERT_TRUE(hasColdBootEpdBaselineClearSequence());
-  // 冷启动白→黑→白三次全量冲刷，冲开长时间烧入的粒子残影。
-  TEST_ASSERT_EQUAL(3, M5.Display.waitDisplayCount);
+  // 冷启动连续两次白刷，擦除长时间烧入的旧画面残影。
+  TEST_ASSERT_EQUAL(2, M5.Display.waitDisplayCount);
 }
 
 void test_init_rgb_led_enables_power_and_keeps_pixels_off() {
